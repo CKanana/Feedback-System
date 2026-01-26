@@ -1,0 +1,194 @@
+/* Main content container for static layout */
+.main-content-container {
+	position: relative;
+	z-index: 1;
+}
+/* Blur effect for modal overlay */
+.blur-bg {
+	backdrop-filter: blur(6px);
+	-webkit-backdrop-filter: blur(6px);
+}
+/* Profile menu modal popup styles */
+.profile-menu-overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100vw;
+	height: 100vh;
+	background: rgba(0,0,0,0.18);
+	z-index: 999;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+.profile-menu {
+	position: relative;
+	background: #fff;
+	border-radius: 14px;
+	box-shadow: 0 8px 32px rgba(178, 69, 146, 0.18);
+	padding: 2rem 2.5rem;
+	min-width: 260px;
+	z-index: 1000;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+/* Profile menu dropdown overlay styles */
+.profile-menu-header {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	margin-bottom: 1rem;
+}
+.profile-photo-large {
+	width: 64px;
+	height: 64px;
+	border-radius: 50%;
+	object-fit: cover;
+	margin-bottom: 0.5rem;
+}
+.profile-menu-name {
+	font-weight: 600;
+	color: #7D1F4B;
+	margin-bottom: 0.2rem;
+}
+.profile-menu-role {
+	font-size: 0.95rem;
+	color: #B24592;
+	margin-bottom: 0.5rem;
+}
+.profile-menu-list {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	width: 100%;
+	color: #444;
+}
+.profile-menu-list li {
+	margin-bottom: 0.5rem;
+	font-size: 0.98rem;
+}
+/* Settings page custom styles */
+.settings-form {
+	width: 100%;
+	display: flex;
+	flex-direction: column;
+	gap: 1.5rem;
+}
+.settings-section {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 0.5rem;
+}
+.settings-input {
+	width: 100%;
+	padding: 0.7rem 0.5rem;
+	border-radius: 8px;
+	border: 1px solid #e0e0e0;
+	font-size: 1rem;
+	background: #f9f9fc;
+	transition: border 0.18s;
+}
+.settings-input:focus {
+	border: 1.5px solid #B24592;
+	outline: none;
+}
+.profile-card.settings-card {
+	background: #fff;
+	border-radius: 18px;
+	box-shadow: 0 8px 32px rgba(178, 69, 146, 0.13);
+	padding: 2.5rem 2.5rem 2rem 2.5rem;
+	min-width: 340px;
+	max-width: 400px;
+	width: 100%;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+.profile-page-bg {
+	min-height: 100vh;
+	background: #f7f7fa;
+	display: flex;
+	flex-direction: column;
+}
+
+.profile-card-center {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.profile-card {
+	background: #fff;
+	border-radius: 18px;
+	box-shadow: 0 8px 32px rgba(178, 69, 146, 0.13);
+	padding: 2.5rem 2.5rem 2rem 2.5rem;
+	min-width: 340px;
+	max-width: 400px;
+	width: 100%;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+
+.profile-title {
+	font-size: 1.6rem;
+	font-weight: 600;
+	margin-bottom: 1.5rem;
+	color: #7D1F4B;
+}
+
+.profile-form input {
+	width: 100%;
+	margin-bottom: 1.1rem;
+	padding: 0.7rem 0.5rem;
+	border-radius: 8px;
+	border: 1px solid #e0e0e0;
+	font-size: 1rem;
+	background: #f9f9fc;
+	transition: border 0.18s;
+}
+.profile-form input:focus {
+	border: 1.5px solid #B24592;
+	outline: none;
+}
+.save-button {
+	color: #fff;
+	padding: 0.8rem 1.5rem;
+	font-size: 1.1rem;
+	margin-top: 0.5rem;
+    background: #fff;
+  color: var(--primary-burgundy); 
+  border: 1px solid #fff;
+  border-radius: 999px;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+	
+}
+.save-button:hover {
+	background: transparent;
+  color: #F7941E;
+  transform: translateY(-1px);
+}
+.pfp-input {
+	display: block;
+	margin: 0 auto 1rem auto;
+	width: 120px;
+	height: 36px;
+	/* File input cannot be made round, so keep default */
+}
+
+.pfp-preview {
+	display: block;
+	margin: 0 auto 1rem auto;
+	width: 120px;
+	height: 120px;
+	border-radius: 50%;
+	border: 2px solid #7D1F4B;
+	box-shadow: 0 4px 16px rgba(125, 31, 75, 0.18);
+	background: #fff;
+	object-fit: cover;
+	padding: 4px;
+}
