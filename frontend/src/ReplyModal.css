@@ -1,0 +1,140 @@
+.reply-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(30, 30, 40, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.reply-modal-content {
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  width: 100%;
+  max-width: 550px;
+  animation: slideInUp 0.25s ease-out;
+  overflow: hidden;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #7D1F4B;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  font-size: 1.8rem;
+  line-height: 1;
+  color: #aaa;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.2s;
+}
+
+.modal-close-btn:hover {
+  color: #333;
+}
+
+.modal-body {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.reply-textarea {
+  width: 100%;
+  min-height: 150px;
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1.5px solid #d0d0d0;
+  font-size: 1rem;
+  font-family: inherit;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.reply-textarea:focus {
+  border-color: #B24592;
+  box-shadow: 0 0 0 3px rgba(178, 69, 146, 0.1);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1.5rem;
+}
+
+.attach-btn {
+  background: #f1f3f5;
+  color: #495057;
+  border: 1px solid #dee2e6;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.2s;
+}
+
+.attach-btn:hover {
+  background: #e9ecef;
+}
+
+.file-name {
+  margin-left: 12px;
+  font-size: 0.85rem;
+  color: #555;
+  font-style: italic;
+}
+
+.send-reply-btn {
+  background: #7D1F4B;
+  color: #fff;
+  border: none;
+  padding: 0.7rem 1.8rem;
+  border-radius: 99px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.send-reply-btn:hover {
+  background: #9c2861;
+}
+
+@keyframes slideInUp {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
