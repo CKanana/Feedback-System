@@ -26,11 +26,17 @@ function LandingPage() {
           <button className="navbar-btn primary">Get Started</button>
         </div>
       </nav>
-      <main className="landing-main">
-        <h1 className="landing-title" id="main-title">Welcome to VirtualPay</h1>
-        <p className="landing-desc">
-          Empowering open, secure, and data-driven organizational dialogue.
-        </p>
+      <main className="landing-main hero-overlay">
+        <div className="hero-bg-image">
+          <img src={logo} alt="VirtualPay Hero" className="hero-img-right" />
+        </div>
+        <div className="hero-content-overlay">
+          <h1 className="landing-title" id="main-title">Welcome to<br/>VirtualPay Feedback System</h1>
+          <p className="landing-desc">
+            A secure, role-based platform for structured feedback. Transform anonymous insights into data-driven decisions.
+          </p>
+          <button className="get-started-btn">Get Started</button>
+        </div>
       </main>
     </div>
   );

@@ -41,8 +41,8 @@
 	margin-bottom: 1rem;
 }
 .profile-photo-large {
-	width: 64px;
-	height: 64px;
+	width: 96px;
+	height: 96px;
 	border-radius: 50%;
 	object-fit: cover;
 	margin-bottom: 0.5rem;
@@ -183,8 +183,8 @@
 .pfp-preview {
 	display: block;
 	margin: 0 auto 1rem auto;
-	width: 120px;
-	height: 120px;
+	width: 160px;
+	height: 160px;
 	border-radius: 50%;
 	border: 2px solid #7D1F4B;
 	box-shadow: 0 4px 16px rgba(125, 31, 75, 0.18);

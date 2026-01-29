@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { Formik, Form, Field, ErrorMessage } from 'formik';
+import * as Yup from 'yup';
 import { useNavigate } from 'react-router-dom';
 import './Profile.css';
 import './StaffDashboard.css';
@@ -38,32 +40,37 @@ const Profile = () => {
     const [activeSection, setActiveSection] = useState('profile');
     const getNavItemStyle = (section) => ({
         cursor: 'pointer',
-        padding: '12px 15px',
-        color: activeSection === section ? '#F7941E' : '#fff',
+        padding: '12px 20px',
+        color: activeSection === section ? '#B24592' : '#fff',
         fontWeight: activeSection === section ? '700' : '500',
         background: activeSection === section ? '#fff0f7' : 'transparent',
-        borderLeft: activeSection === section ? '4px solid #F7941E' : '4px solid transparent',
+        borderLeft: activeSection === section ? '4px solid #B24592' : '4px solid transparent',
         transition: 'all 0.2s',
         display: 'flex',
         alignItems: 'center',
         gap: '10px'
     });
 
+    // Yup schema for profile form
+    const profileSchema = Yup.object({
+        name: Yup.string().required('Name is required'),
+    });
+
     return (
         <div className="profile-page-bg" style={{ position: 'relative' }}>
             {/* Sidebar from StaffDashboard */}
-            <aside className="sidebar-nav">
+            <aside className="sidebar-nav" style={{ background: 'linear-gradient(135deg, #7D1F4B 0%, #B24592 100%)' }}>
                 <div className="sidebar-logo">
-                    <img src={process.env.PUBLIC_URL + '/vp-pic.png'} onClick={gotoStaffDashboard} alt="Virtual Pay Logo" className="dashboard-logo" />
+                    <img src={process.env.PUBLIC_URL + '/vp-pic.png'} alt="Virtual Pay Logo" className="dashboard-logo" />
                 </div>
                 <nav className="sidebar-nav-menu">
-                    <ul className="sidebar-nav-list">
-                        <li tabIndex="0" role="button" className="sidebar-nav-item overview" onClick={() => { setActiveSection('overview'); navigate('/dashboard'); }}>Overview</li>
-                        <li tabIndex="0" role="button" className="sidebar-nav-item surveys" onClick={() => { setActiveSection('surveys'); navigate('/dashboard'); }}>My Surveys</li>
-                        <li tabIndex="0" role="button" className="sidebar-nav-item polls" onClick={() => { setActiveSection('polls'); navigate('/dashboard'); }}>Active Polls</li>
-                        <li tabIndex="0" role="button" className="sidebar-nav-item history" onClick={() => { setActiveSection('history'); navigate('/dashboard'); }}>History</li>
-                        <li tabIndex="0" role="button" className="sidebar-nav-item profile" onClick={() => { setActiveSection('profile'); navigate('/profile'); }}>Profile</li>
-                        <li tabIndex="0" role="button" className="sidebar-nav-item logout" onClick={() => navigate('/')}>Log Out</li>
+                    <ul className="sidebar-nav-list" style={{ padding: 0, listStyle: 'none' }}>
+                        <li tabIndex="0" role="button" style={getNavItemStyle('overview')} onClick={() => { setActiveSection('overview'); navigate('/dashboard'); }}>Overview</li>
+                        <li tabIndex="0" role="button" style={getNavItemStyle('surveys')} onClick={() => { setActiveSection('surveys'); navigate('/dashboard'); }}>My Surveys</li>
+                        <li tabIndex="0" role="button" style={getNavItemStyle('polls')} onClick={() => { setActiveSection('polls'); navigate('/dashboard'); }}>Active Polls</li>
+                        <li tabIndex="0" role="button" style={getNavItemStyle('history')} onClick={() => { setActiveSection('history'); navigate('/dashboard'); }}>History</li>
+                        <li tabIndex="0" role="button" style={getNavItemStyle('profile')} onClick={() => { setActiveSection('profile'); navigate('/profile'); }}>Profile</li>
+                        <li tabIndex="0" role="button" style={{...getNavItemStyle('logout'), color: '#fde2e2'}} onClick={() => navigate('/')}>Log Out</li>
                     </ul>
                 </nav>
             </aside>
@@ -97,26 +104,49 @@ const Profile = () => {
                     </div>
                 )}
             </div>
-            <div className="profile-card-center">
+            <div className="profile-card-center" style={{ marginLeft: '180px' }}>
                 <div className="profile-card">
-                    <form className="profile-form">
-                        <h1 className="profile-title">Edit Profile</h1>
-                        <img
-                            src={photo || process.env.PUBLIC_URL + "/profile-photo.png"}
-                            alt="Profile Preview"
-                            className="pfp-preview"
-                        />
-                        <input
-                            type="file"
-                            className="pfp-input"
-                            accept="image/*"
-                            onChange={handlePhotoChange}
-                        />
-                        <input type="text" className="name-input" placeholder={user.name} />
-                        <input type="email" className="email-input" placeholder={user.email} value={user.email} readOnly />
-                        <input type="text" className="department-input" placeholder={user.department} value={user.department} readOnly />
-                        <button type="submit" className="save-button">Save Changes</button>
-                    </form>
+                    <Formik
+                        initialValues={{ name: user.name }}
+                        validationSchema={profileSchema}
+                        onSubmit={(values, { setSubmitting }) => {
+                            // Simulate save
+                            setTimeout(() => {
+                                setSubmitting(false);
+                                alert('Profile updated!');
+                            }, 1000);
+                        }}
+                    >
+                        {({ isSubmitting, setFieldValue, values }) => (
+                            <Form className="profile-form">
+                                <h1 className="profile-title">Edit Profile</h1>
+                                <img
+                                    src={photo || process.env.PUBLIC_URL + "/profile-photo.png"}
+                                    alt="Profile Preview"
+                                    className="pfp-preview"
+                                />
+                                <input
+                                    type="file"
+                                    className="pfp-input"
+                                    accept="image/*"
+                                    onChange={e => {
+                                        handlePhotoChange(e);
+                                        // Optionally, you could store the file in Formik state as well
+                                    }}
+                                />
+                                <Field
+                                    type="text"
+                                    name="name"
+                                    className="name-input"
+                                    placeholder={user.name}
+                                />
+                                <ErrorMessage name="name" component="div" style={{ color: '#F7941E', fontSize: '0.95em', marginTop: '2px', marginLeft: '4px' }} />
+                                <input type="email" className="email-input" placeholder={user.email} value={user.email} readOnly />
+                                <input type="text" className="department-input" placeholder={user.department} value={user.department} readOnly />
+                                <button type="submit" className="save-button" disabled={isSubmitting}>Save Changes</button>
+                            </Form>
+                        )}
+                    </Formik>
                 </div>
             </div>
         </div>

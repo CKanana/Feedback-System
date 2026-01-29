@@ -259,8 +259,8 @@
   top: 0;
   left: 0;
   width: 100%;
-  height: 60px;
-  padding: 0 2.5rem;
+  height: 80px;
+  padding: 15px 2.5rem 0 2.5rem;
   z-index: 1000;
   display: flex;
   align-items: center;
@@ -515,7 +515,7 @@
   background: transparent;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
-  padding: 2.5rem;
+  padding: 0;
   border-radius: 0;
   border: none;
   box-shadow: none;
@@ -527,8 +527,9 @@
   font-size: 3.5rem;
   font-weight: 800;
   line-height: 1.1;
-  color: var(--primary-burgundy);
+  color: #fff;
   margin-bottom: 1.5rem;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.3);
 }
 .text-gradient {
   background: linear-gradient(135deg, var(--primary-burgundy) 0%, var(--accent-orange) 100%);
@@ -538,10 +539,11 @@
 
 .hero-subheadline {
   font-size: 1.2rem;
-  color: #222;
+  color: #f0f0f0;
   line-height: 1.6;
   margin-bottom: 2.5rem;
   max-width: 90%;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.4);
 }
 
 .hero-actions {

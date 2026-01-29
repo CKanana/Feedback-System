@@ -1,5 +1,7 @@
 
 import React, { useState } from 'react';
+import { Formik, Form, Field, ErrorMessage } from 'formik';
+import * as Yup from 'yup';
 import { useNavigate } from 'react-router-dom';
 import './admin.css';
 // Style objects from admin.js for consistency
@@ -48,10 +50,18 @@ const AdminProfile = () => {
     setAdmin({ ...admin, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+
+  // Yup schema for admin profile form
+  const adminProfileSchema = Yup.object({
+    name: Yup.string().required('Name is required'),
+  });
+
+  const handleSubmit = (values, { setSubmitting }) => {
     // Save admin profile logic here
-    alert('Profile updated!');
+    setTimeout(() => {
+      setSubmitting(false);
+      alert('Profile updated!');
+    }, 1000);
   };
 
   return (
@@ -72,62 +82,69 @@ const AdminProfile = () => {
         <main className="admin-main-content" style={{ flex: 1, padding: '2.5rem', overflowY: 'auto' }}>
           <section style={{ animation: 'fadeIn 0.5s ease', ...cardStyle, maxWidth: 500, margin: '0 auto' }}>
             <h2 style={{ color: '#2c3e50', marginBottom: '1.5rem' }}>Admin Profile</h2>
-            <form className="admin-profile-form" onSubmit={handleSubmit}>
-              <img
-                src={photo || process.env.PUBLIC_URL + '/profile-photo.png'}
-                alt="Admin Preview"
-                className="admin-pfp-preview"
-                style={{ display: 'block', margin: '0 auto 1.5rem', width: 120, height: 120, borderRadius: '50%', objectFit: 'cover', border: '3px solid #B24592' }}
-              />
-              <input
-                type="file"
-                className="admin-pfp-input"
-                accept="image/*"
-                onChange={handlePhotoChange}
-                style={{ marginBottom: 20 }}
-              />
-              <input
-                type="text"
-                name="name"
-                className="admin-name-input"
-                placeholder="Name"
-                value={admin.name}
-                onChange={handleChange}
-                style={inputStyle}
-              />
-              <input
-                type="email"
-                name="email"
-                className="admin-email-input"
-                placeholder="Email"
-                value={admin.email}
-                readOnly
-                disabled
-                style={inputStyle}
-              />
-              <input
-                type="text"
-                name="role"
-                className="admin-role-input"
-                placeholder="Role"
-                value={admin.role}
-                readOnly
-                disabled
-                style={inputStyle}
-              />
-              <button type="submit" className="admin-save-button" style={{
-                background: 'linear-gradient(90deg, #F7941E 0%, #B24592 100%)',
-                color: 'white',
-                padding: '14px 32px',
-                border: 'none',
-                borderRadius: '24px',
-                cursor: 'pointer',
-                fontSize: '1.1rem',
-                fontWeight: 600,
-                marginTop: '1.5rem',
-                width: '100%'
-              }}>Save Changes</button>
-            </form>
+            <Formik
+              initialValues={{ name: admin.name }}
+              validationSchema={adminProfileSchema}
+              onSubmit={handleSubmit}
+            >
+              {({ isSubmitting }) => (
+                <Form className="admin-profile-form">
+                  <img
+                    src={photo || process.env.PUBLIC_URL + '/profile-photo.png'}
+                    alt="Admin Preview"
+                    className="admin-pfp-preview"
+                    style={{ display: 'block', margin: '0 auto 1.5rem', width: 120, height: 120, borderRadius: '50%', objectFit: 'cover', border: '3px solid #B24592' }}
+                  />
+                  <input
+                    type="file"
+                    className="admin-pfp-input"
+                    accept="image/*"
+                    onChange={handlePhotoChange}
+                    style={{ marginBottom: 20 }}
+                  />
+                  <Field
+                    type="text"
+                    name="name"
+                    className="admin-name-input"
+                    placeholder="Name"
+                    style={inputStyle}
+                  />
+                  <ErrorMessage name="name" component="div" style={{ color: '#F7941E', fontSize: '0.95em', marginTop: '2px', marginLeft: '4px' }} />
+                  <input
+                    type="email"
+                    name="email"
+                    className="admin-email-input"
+                    placeholder="Email"
+                    value={admin.email}
+                    readOnly
+                    disabled
+                    style={inputStyle}
+                  />
+                  <input
+                    type="text"
+                    name="role"
+                    className="admin-role-input"
+                    placeholder="Role"
+                    value={admin.role}
+                    readOnly
+                    disabled
+                    style={inputStyle}
+                  />
+                  <button type="submit" className="admin-save-button" style={{
+                    background: 'linear-gradient(90deg, #F7941E 0%, #B24592 100%)',
+                    color: 'white',
+                    padding: '14px 32px',
+                    border: 'none',
+                    borderRadius: '24px',
+                    cursor: 'pointer',
+                    fontSize: '1.1rem',
+                    fontWeight: 600,
+                    marginTop: '1.5rem',
+                    width: '100%'
+                  }} disabled={isSubmitting}>Save Changes</button>
+                </Form>
+              )}
+            </Formik>
           </section>
         </main>
       </div>
