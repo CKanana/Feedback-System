@@ -9,15 +9,15 @@ const HeroSection = ({ loaded }) => {
 
             {/* Top App Bar */}
             <div className="feed-header">
-              <span className="feed-title">Company Feed</span>
-              <span className="admin-badge">Admin</span>
+              <span className="feed-title">Live Feed Preview</span>
+              <span className="admin-badge">PREVIEW</span>
             </div>
 
             {/* Admin Announcement */}
             <div className="feed-post admin-post">
               <p className="post-title">Admin Announcement</p>
               <p className="post-text">
-                Quarterly feedback is now open. Share your thoughts anonymously.
+                🎉 NEW FEATURE: Real-time poll results now available!
               </p>
 
               <div className="feed-replies">
@@ -30,16 +30,16 @@ const HeroSection = ({ loaded }) => {
             <div className="feed-post">
               <p className="post-title">Quick Poll</p>
               <p className="post-text">
-                How clear were project timelines this month?
+                What's your biggest workplace challenge right now?
               </p>
 
               <div className="poll-options">
-                <div className="poll-option active">Very clear</div>
-                <div className="poll-option">Somewhat clear</div>
-                <div className="poll-option">Unclear</div>
+                <div className="poll-option active">Communication</div>
+                <div className="poll-option">Workload</div>
+                <div className="poll-option">Tools & Tech</div>
               </div>
 
-              <p className="shared-answers">12 responses shared</p>
+              <p className="shared-answers">47 responses in 2 hours</p>
             </div>
 
           </div>
@@ -47,15 +47,22 @@ const HeroSection = ({ loaded }) => {
       </div>
 
       <div className="hero-content">
-        <div className={`hero-text-wrapper bounce-in${loaded ? ' show' : ''}`} style={{ position: 'relative', zIndex: 100, color: '#222' }}>
-          <h1 className="hero-headline" style={{ color: '#7D1F4B' }}>
+        <div className={`hero-text-wrapper bounce-in${loaded ? ' show' : ''}`} style={{ position: 'relative', zIndex: 100 }}>
+          <h1 className="hero-headline" style={{ color: '#fff', textShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
            Welcome to <br />
-            <span className="text-gradient">VirtualPay Feedback System </span>
+            <span style={{ 
+              background: 'linear-gradient(90deg, #F7941E 0%, #B24592 100%)', 
+              WebkitBackgroundClip: 'text', 
+              WebkitTextFillColor: 'transparent', 
+              backgroundClip: 'text', 
+              filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.5))' 
+            }}>VirtualPay Feedback System</span>
           </h1>
-          <p className="hero-subheadline" style={{ color: '#F7941E' }}>
-            A secure, role-based platform for structured feedback. Transform anonymous insights into data-driven decisions.
+          <p className="hero-subheadline" style={{ color: 'rgba(255,255,255,0.95)', textShadow: '0 1px 4px rgba(0,0,0,0.3)' }}>
+            Anonymous Employee Surveys That Get Real Answers.
+            <br />
+            Make feedback easy, honest, and actionable. No more awkward conversations.
           </p>
-
         </div>
       </div>
     </section>

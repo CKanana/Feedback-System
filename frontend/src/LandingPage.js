@@ -53,7 +53,7 @@ function LandingPage() {
           <img 
           src={logUrl} 
           alt="VirtualPay Logo" 
-          style={{ width: '220px', height: '150px' }} />
+          style={{ width: '120px', height: '60px', borderRadius: '18px', boxShadow: '0 4px 18px rgba(125, 31, 75, 0.13)' }} />
         </div>
         <ul className="navbar-links">
           <li><a href="#company">Our Company</a></li>

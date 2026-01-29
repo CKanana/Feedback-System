@@ -188,18 +188,6 @@
 .admin-save-button:hover {
 	background: #7D1F4B;
 }
-.admin-pfp-preview {
-	display: block;
-	margin: 0 auto 1rem auto;
-	width: 120px;
-	height: 120px;
-	border-radius: 50%;
-	border: 2px solid #7D1F4B;
-	box-shadow: 0 4px 16px rgba(125, 31, 75, 0.18);
-	background: #fff;
-	object-fit: cover;
-	padding: 4px;
-}
 .admin-pfp-input {
 	display: block;
 	margin: 0 auto 1rem auto;
