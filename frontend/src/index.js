@@ -9,6 +9,7 @@ import StaffDashboard from './StaffDashboard';
 import Profile from './Profile';
 import AdminDashboard from './admin';
 import AdminProfile from './AdminProfile';
+import EmailVerified from './EmailVerified';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
@@ -22,6 +23,7 @@ root.render(
         <Route path ="/profile" element={<Profile />}/>
         <Route path ="/admin" element = {<AdminDashboard/>}/>
         <Route path ="/admin-profile" element = {<AdminProfile/>}/>
+        <Route path="/email-verified" element={<EmailVerified />} />
       </Routes>
     </Router>
   </React.StrictMode>

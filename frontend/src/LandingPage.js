@@ -56,7 +56,7 @@ function LandingPage() {
           style={{ width: '120px', height: '60px', borderRadius: '18px', boxShadow: '0 4px 18px rgba(125, 31, 75, 0.13)' }} />
         </div>
         <ul className="navbar-links">
-          <li><a href="#company">Our Company</a></li>
+          <li><a href="https://virtual-pay.io/" target="_blank" rel="noopener noreferrer">Our Company</a></li>
         </ul>
         <div className="navbar-actions">
           <button className="navbar-btn secondary" onClick={goToAuth}>Log In</button>

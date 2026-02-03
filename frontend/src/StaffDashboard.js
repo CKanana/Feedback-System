@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { auth } from './firebase';
+import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import './StaffDashboard.css';
 import ReplyModal from './ReplyModal';
@@ -10,7 +12,33 @@ import SuccessToast from './SuccessToast';
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [activeSection, setActiveSection] = useState('overview');
   const [historyTab, setHistoryTab] = useState('surveys');
-  const staffName = "Crystal";
+  const [staffName, setStaffName] = useState('');
+  const [profilePhoto, setProfilePhoto] = useState(null);
+  const [user, setUser] = useState(null);
+
+  // Fetch user name from backend using Firebase Auth email
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      const currentUser = auth.currentUser;
+      if (!currentUser) return;
+      try {
+        const token = await currentUser.getIdToken();
+        const { data } = await axios.get('http://localhost:5000/api/auth/me', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setUser(data.user);
+        setStaffName(data.user.name || currentUser.email);
+        if (data.user.photo) {
+          setProfilePhoto(data.user.photo.startsWith('http') ? data.user.photo : `http://localhost:5000${data.user.photo}`);
+        } else {
+          setProfilePhoto(null);
+        }
+      } catch (err) {
+        setStaffName(currentUser.email);
+      }
+    };
+    fetchUserProfile();
+  }, []);
   
   const gotoProfile = () => { 
     setActiveSection('profile');
@@ -336,7 +364,7 @@ import SuccessToast from './SuccessToast';
         {activeSection === 'overview' && (
           <section className="welcome-section fade-in" aria-label="Overview Section">
             <div className="overview-hero-card">
-              <img src={process.env.PUBLIC_URL + '/profile-photo.png'} alt="Profile" className="overview-hero-avatar" />
+              <img src={profilePhoto || process.env.PUBLIC_URL + '/profile-photo.png'} alt="Profile" className="overview-hero-avatar" />
               <div className="overview-hero-content">
                 <div className="overview-hero-title">Good Morning, {staffName}</div>
                 <div className="overview-hero-summary">You have <span className="highlight">{pendingSurveyCount + activePollCount} pending tasks</span> today.</div>
@@ -349,7 +377,6 @@ import SuccessToast from './SuccessToast';
                     <div className="overview-hero-task-label">Active Polls</div>
                     <div className="overview-hero-task-value polls">{activePollCount}</div>
                   </div>
-                  {/* Removed Department/HR card as requested */}
                   <div className="overview-hero-task" onClick={() => setActiveSection('history')} style={{cursor:'pointer'}}>
                     <div className="overview-hero-task-label">Completed Tasks</div>
                     <div className="overview-hero-task-value completed">{surveys.filter(s => s.status === 'Completed').length + pollHistory.length}</div>
@@ -542,7 +569,6 @@ import SuccessToast from './SuccessToast';
                               <button onClick={() => setExpandedComments(prev => ({ ...prev, [poll.id]: !prev[poll.id] }))} style={{ background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 💬 Comments ({poll.comments ? poll.comments.length : 0})
                               </button>
-                              {/* Share button removed as requested */}
                             </div>
                             
                             {expandedComments[poll.id] && (
@@ -589,7 +615,6 @@ import SuccessToast from './SuccessToast';
                   return (
                     <div key={poll.id} className="poll-card">
                       <div style={{ fontWeight: 700, fontSize: '1.15rem', marginBottom: '0.7rem', color: '#333' }}>{poll.question}</div>
-                      {/* Removed From: ... as all polls come from admin */}
                       <div style={{ fontSize: '0.85rem', color: poll.anonymous ? '#4BCB6B' : '#F7941E', marginBottom: '0.5rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
                         {poll.anonymous ? <><span>🔒</span> Identity Hidden</> : <><span>👁️</span> Identity Visible</>}
                       </div>
@@ -618,18 +643,12 @@ import SuccessToast from './SuccessToast';
                             ))}
                           </div>
                           <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
-                            {/* Share button removed as requested */}
+                            <button onClick={() => setConfirmVote({ open: true, pollId: poll.id, option: selected })} style={{ background: 'linear-gradient(90deg, #F7941E 0%, #B24592 100%)', color: 'white', border: 'none', padding: '8px 20px', borderRadius: '20px', fontWeight: 600, cursor: 'pointer', opacity: !selected ? 0.6 : 1 }}>
+                                Submit Vote
+                            </button>
                           </div>
                         </>
                       )}
-                      <button
-                        className="survey-action-btn start"
-                        style={{ marginTop: '1rem', width: '100%', background: 'linear-gradient(90deg, #F7941E 0%, #B24592 100%)', color: 'white', border: 'none', padding: '12px', borderRadius: '12px', cursor: 'pointer', fontWeight: '600', opacity: !selected ? 0.6 : 1 }}
-                        disabled={!selected}
-                        onClick={() => handleVoteSubmit(poll.id)}
-                      >
-                        Submit Vote
-                      </button>
                     </div>
                   );
                 })
@@ -665,21 +684,55 @@ import SuccessToast from './SuccessToast';
                 <h2 style={{ color: '#2c3e50', marginBottom: '1.5rem', fontWeight: 700 }}>My Profile</h2>
                 <div style={{ ...cardStyle, textAlign: 'center' }}>
                     <div style={{ position: 'relative', display: 'inline-block', marginBottom: '1.5rem' }}>
-                        <img src={process.env.PUBLIC_URL + '/profile-photo.png'} alt="Profile" className="staff-profile-photo" />
-                        <button style={{ position: 'absolute', bottom: '0', right: '0', background: '#B24592', color: 'white', border: '3px solid white', borderRadius: '50%', width: '36px', height: '36px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                      <img src={profilePhoto || process.env.PUBLIC_URL + '/profile-photo.png'} alt="Profile" className="staff-profile-photo" />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        id="staff-photo-upload"
+                        onChange={async e => {
+                          const file = e.target.files[0];
+                          if (file && auth.currentUser) {
+                            setProfilePhoto(URL.createObjectURL(file));
+                            // Upload to backend
+                            const formData = new FormData();
+                            formData.append('photo', file);
+                            const token = await auth.currentUser.getIdToken();
+                            await axios.put('http://localhost:5000/api/auth/me', formData, {
+                              headers: {
+                                'Content-Type': 'multipart/form-data',
+                                Authorization: `Bearer ${token}`
+                              }
+                            });
+                            // Refetch user to get new photo URL
+                            const { data } = await axios.get('http://localhost:5000/api/auth/me', {
+                              headers: { Authorization: `Bearer ${token}` }
+                            });
+                            setUser(data.user);
+                            setProfilePhoto(data.user.photo ? `http://localhost:5000${data.user.photo}` : null);
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        style={{ position: 'absolute', bottom: '0', right: '0', background: '#B24592', color: 'white', border: '3px solid white', borderRadius: '50%', width: '36px', height: '36px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        onClick={() => document.getElementById('staff-photo-upload').click()}
+                      >
+                        +
+                      </button>
                     </div>
                     <div style={{ textAlign: 'left', display: 'grid', gap: '1rem' }}>
                         <div>
                             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#555' }}>Full Name</label>
-                            <input type="text" defaultValue="Crystal" style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }} />
+                            <input type="text" value={user?.name || ''} readOnly style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }} />
                         </div>
                         <div>
                             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#555' }}>Email</label>
-                            <input type="email" defaultValue="crystal@example.com" disabled style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #eee', background: '#f9f9f9', color: '#888' }} />
+                            <input type="email" value={user?.email || ''} disabled style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #eee', background: '#f9f9f9', color: '#888' }} />
                         </div>
                         <div>
                             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#555' }}>Department</label>
-                            <input type="text" defaultValue="HR" disabled style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #eee', background: '#f9f9f9', color: '#888' }} />
+                            <input type="text" value={user?.department || ''} disabled style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #eee', background: '#f9f9f9', color: '#888' }} />
                         </div>
                         <button style={{ marginTop: '1rem', background: 'linear-gradient(90deg, #F7941E 0%, #B24592 100%)', color: 'white', border: 'none', padding: '12px', borderRadius: '24px', fontWeight: 600, cursor: 'pointer' }}>Save Changes</button>
                     </div>

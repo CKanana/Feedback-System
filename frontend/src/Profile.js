@@ -1,29 +1,65 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
 import { useNavigate } from 'react-router-dom';
 import './Profile.css';
 import './StaffDashboard.css';
+import axios from 'axios';
+import { auth } from './firebase';
 
 const Profile = () => {
-    // Hardcoded user info for demo
-    const user = {
-        name: 'Crystal',
-        email: 'crystal@example.com',
-        department: 'HR'
-    };
-    const [photo, setPhoto] = useState(null);
+    const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [photo, setPhoto] = useState(null); // This will hold the file object for upload
+    const [photoPreview, setPhotoPreview] = useState(process.env.PUBLIC_URL + "/profile-photo.png"); // For display
     const navigate = useNavigate();
-    const gotoStaffDashboard = () => {navigate ('/dashboard')}
+    const fileInputRef = useRef(null);
+
+    useEffect(() => {
+        const fetchProfile = async () => {
+            try {
+                const currentUser = auth.currentUser;
+                if (!currentUser) {
+                    navigate('/auth');
+                    return;
+                }
+                const token = await currentUser.getIdToken();
+                const { data } = await axios.get('http://localhost:5000/api/auth/me', {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                setUser(data.user);
+                if (data.user.photo) {
+                    setPhotoPreview(`http://localhost:5000${data.user.photo}`);
+                }
+                setLoading(false);
+            } catch (error) {
+                console.error('Failed to fetch profile', error);
+                navigate('/auth');
+            }
+        };
+
+        const unsubscribe = auth.onAuthStateChanged(user => {
+            if (user) {
+                fetchProfile();
+            } else {
+                navigate('/auth');
+            }
+        });
+
+        return () => unsubscribe();
+    }, [navigate]);
 
     const handlePhotoChange = (e) => {
         const file = e.target.files[0];
         if (file) {
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                setPhoto(ev.target.result);
-            };
-            reader.readAsDataURL(file);
+            setPhoto(file); // Store the file object for upload
+            setPhotoPreview(URL.createObjectURL(file)); // Create a temporary URL for preview
+        }
+    };
+
+    const handlePhotoClick = () => {
+        if (fileInputRef.current) {
+            fileInputRef.current.click();
         }
     };
 
@@ -55,6 +91,43 @@ const Profile = () => {
     const profileSchema = Yup.object({
         name: Yup.string().required('Name is required'),
     });
+
+    const handleSubmit = async (values, { setSubmitting }) => {
+        if (!auth.currentUser) return;
+
+        try {
+            const formData = new FormData();
+            formData.append('name', values.name);
+            if (photo) {
+                formData.append('photo', photo);
+            }
+
+            const token = await auth.currentUser.getIdToken();
+            await axios.put('http://localhost:5000/api/auth/me', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                    Authorization: `Bearer ${token}`
+                }
+            });
+
+            alert('Profile updated successfully!');
+            // Refresh profile info after update
+            setLoading(true);
+            const { data } = await axios.get('http://localhost:5000/api/auth/me', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setUser(data.user);
+            if (data.user.photo) {
+                setPhotoPreview(`http://localhost:5000${data.user.photo}`);
+            }
+            setLoading(false);
+        } catch (error) {
+            console.error('Failed to update profile', error);
+            alert('Failed to update profile. Please try again.');
+        } finally {
+            setSubmitting(false);
+        }
+    };
 
     return (
         <div className="profile-page-bg" style={{ position: 'relative' }}>
@@ -91,9 +164,9 @@ const Profile = () => {
                     <div className="profile-menu-overlay" onClick={() => setShowProfileMenu(false)}>
                         <div className="profile-menu" onClick={e => e.stopPropagation()}>
                             <div className="profile-menu-header">
-                                <img src={process.env.PUBLIC_URL + '/profile-photo.png'} alt="Profile" className="profile-photo-large" />
-                                <div className="profile-menu-name">Crystal</div>
-                                <div className="profile-menu-role">Staff Member</div>
+                                <img src={photoPreview} alt="Profile" className="profile-photo-large" />
+                                <div className="profile-menu-name">{user?.name || '...'}</div>
+                                <div className="profile-menu-role">{user?.role || '...'}</div>
                             </div>
                             <ul className="profile-menu-list">
                                 <li>Email: crystal@example.com</li>
@@ -105,49 +178,51 @@ const Profile = () => {
                 )}
             </div>
             <div className="profile-card-center" style={{ marginLeft: '180px' }}>
-                <div className="profile-card">
-                    <Formik
-                        initialValues={{ name: user.name }}
-                        validationSchema={profileSchema}
-                        onSubmit={(values, { setSubmitting }) => {
-                            // Simulate save
-                            setTimeout(() => {
-                                setSubmitting(false);
-                                alert('Profile updated!');
-                            }, 1000);
-                        }}
-                    >
-                        {({ isSubmitting, setFieldValue, values }) => (
-                            <Form className="profile-form">
-                                <h1 className="profile-title">Edit Profile</h1>
-                                <img
-                                    src={photo || process.env.PUBLIC_URL + "/profile-photo.png"}
-                                    alt="Profile Preview"
-                                    className="pfp-preview"
-                                />
-                                <input
-                                    type="file"
-                                    className="pfp-input"
-                                    accept="image/*"
-                                    onChange={e => {
-                                        handlePhotoChange(e);
-                                        // Optionally, you could store the file in Formik state as well
-                                    }}
-                                />
-                                <Field
-                                    type="text"
-                                    name="name"
-                                    className="name-input"
-                                    placeholder={user.name}
-                                />
-                                <ErrorMessage name="name" component="div" style={{ color: '#F7941E', fontSize: '0.95em', marginTop: '2px', marginLeft: '4px' }} />
-                                <input type="email" className="email-input" placeholder={user.email} value={user.email} readOnly />
-                                <input type="text" className="department-input" placeholder={user.department} value={user.department} readOnly />
-                                <button type="submit" className="save-button" disabled={isSubmitting}>Save Changes</button>
-                            </Form>
-                        )}
-                    </Formik>
-                </div>
+                {loading ? (
+                    <div className="profile-card">Loading...</div>
+                ) : (
+                    <div className="profile-card">
+                        <Formik
+                            initialValues={{ name: user?.name || '' }}
+                            validationSchema={profileSchema}
+                            onSubmit={handleSubmit}
+                            enableReinitialize
+                        >
+                            {({ isSubmitting }) => (
+                                <Form className="profile-form">
+                                    <h1 className="profile-title">Edit Profile</h1>
+                                    <div className="pfp-preview-wrapper" onClick={handlePhotoClick} style={{ cursor: 'pointer' }}>
+                                        <img
+                                            src={photoPreview}
+                                            alt="Profile Preview"
+                                            className="pfp-preview"
+                                        />
+                                        <div className="pfp-upload-overlay">Click to change</div>
+                                    </div>
+                                    <input
+                                        ref={fileInputRef}
+                                        id="photo-upload"
+                                        type="file"
+                                        className="pfp-input"
+                                        accept="image/*"
+                                        onChange={handlePhotoChange}
+                                        style={{ display: 'none' }}
+                                    />
+                                    <Field
+                                        type="text"
+                                        name="name"
+                                        className="name-input"
+                                        placeholder="Your Name"
+                                    />
+                                    <ErrorMessage name="name" component="div" style={{ color: '#F7941E', fontSize: '0.95em', marginTop: '2px', marginLeft: '4px' }} />
+                                    <input type="email" className="email-input" value={user?.email || ''} readOnly />
+                                    <input type="text" className="department-input" value={user?.department || ''} readOnly />
+                                    <button type="submit" className="save-button" disabled={isSubmitting}>Save Changes</button>
+                                </Form>
+                            )}
+                        </Formik>
+                    </div>
+                )}
             </div>
         </div>
     );
