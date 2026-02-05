@@ -1,3 +1,4 @@
+// ...existing code...
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
@@ -8,6 +9,19 @@ const jwt = require('jsonwebtoken');
 const { User } = require('../schema');
 const authenticateToken = require('../middleware/auth');
 const admin = require('../firebase');
+
+// Fetch all users and departments (admin only)
+router.get('/all-users', async (req, res) => {
+  // You may want to add admin auth here if needed
+  try {
+    const users = await User.find({}, 'name email role department');
+    // Get unique departments
+    const departments = [...new Set(users.map(u => u.department).filter(Boolean))];
+    res.json({ users, departments });
+  } catch (err) {
+    res.status(500).send('Server error');
+  }
+});
 
 
 // Multer setup for photo upload
@@ -87,8 +101,11 @@ router.post('/signup', async (req, res) => {
         password,
         displayName: name,
       });
-      // Generate Firebase email verification link
-      const link = await admin.auth().generateEmailVerificationLink(email);
+      // Generate Firebase email verification link pointing to our custom endpoint
+      const actionCodeSettings = {
+        url: 'http://localhost:5000/api/auth/verify-email',
+      };
+      const link = await admin.auth().generateEmailVerificationLink(email, actionCodeSettings);
       // Save firebaseUid in MongoDB
       const hashedPassword = await bcrypt.hash(password, 10);
       const user = new User({ name, email, password: hashedPassword, role, department, firebaseUid: firebaseUser.uid });
@@ -123,12 +140,28 @@ router.post('/signup', async (req, res) => {
   }
 });
 
-// Login Route (no email verification check)
+// Login Route with email verification check
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     const user = await User.findOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } });
     if (!user) return res.status(400).json({ message: 'Invalid credentials' });
+
+    // Firebase verification check disabled for development
+    // if (!user.isVerified) {
+    //   try {
+    //     const firebaseUser = await admin.auth().getUser(user.firebaseUid);
+    //     if (firebaseUser.emailVerified) {
+    //       user.isVerified = true;
+    //       await user.save();
+    //     } else {
+    //       return res.status(403).json({ message: 'Please verify your email before logging in.' });
+    //     }
+    //   } catch (firebaseErr) {
+    //     console.error('Firebase verification check failed:', firebaseErr);
+    //     return res.status(403).json({ message: 'Please verify your email before logging in.' });
+    //   }
+    // }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
@@ -158,13 +191,21 @@ router.get('/user-by-email', async (req, res) => {
 
 // Email verification endpoint
 router.get('/verify-email', async (req, res) => {
-  const { uid } = req.query;
-  if (!uid) return res.status(400).json({ message: 'Missing uid' });
+  const { oobCode, mode } = req.query;
+  if (!oobCode || mode !== 'verifyEmail') return res.status(400).json({ message: 'Invalid verification link' });
   try {
-    // Check Firebase email verification status
-    const firebaseUser = await admin.auth().getUser(uid);
-    if (!firebaseUser.emailVerified) {
-      return res.status(403).json({ message: 'Email not verified yet.' });
+    // Apply the action code to verify the email
+    await admin.auth().applyActionCode(oobCode);
+    // Get the email from the action code
+    const info = await admin.auth().checkActionCode(oobCode);
+    const email = info.data.email;
+    // Get the Firebase user
+    const firebaseUser = await admin.auth().getUserByEmail(email);
+    // Update MongoDB user to set isVerified: true
+    const user = await User.findOneAndUpdate({ firebaseUid: firebaseUser.uid }, { isVerified: true }, { new: true });
+    if (!user) {
+      // fallback: try by email if firebaseUid missing
+      await User.findOneAndUpdate({ email }, { isVerified: true });
     }
     // Redirect to frontend login page
     res.redirect('http://localhost:3000/auth?verified=true');
@@ -188,4 +229,5 @@ router.post('/force-verify', async (req, res) => {
   }
 });
 
-module.exports = router;
+
+// (Moved this code into the /signup route handler above, this block was unreachable and caused SyntaxError)

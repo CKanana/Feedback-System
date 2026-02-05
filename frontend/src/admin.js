@@ -1,7 +1,12 @@
+
 import React, { useState, useEffect, useRef } from 'react';
+import axios from 'axios';
 import { Formik, Form, Field, ErrorMessage, FieldArray } from 'formik';
 import * as Yup from 'yup';
 import { useNavigate } from 'react-router-dom';
+import Header from './Header';
+import AdminSidebar from './AdminSidebar';
+import { Card, CardHeader, CardTitle, CardContent } from './components/ui/card';
 import './admin.css';
 
 
@@ -300,9 +305,14 @@ const responsiveStyles = `
 `;
 
 const AdminDashboard = () => {
+  // Survey creation state
+  const [surveyTitle, setSurveyTitle] = useState('');
+  const [surveyDescription, setSurveyDescription] = useState('');
+  const [surveyQuestions, setSurveyQuestions] = useState([{ text: '', options: ['', ''], required: false }]);
     const [showMobileMenu, setShowMobileMenu] = useState(false);
     const [pollsDropdownOpen, setPollsDropdownOpen] = useState(false);
-    const [surveysDropdownOpen, setSurveysDropdownOpen] = useState(false);
+    // const [surveysDropdownOpen, setSurveysDropdownOpen] = useState(false); // unused
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     // ...existing AdminDashboard code...
     const [isLoading, setIsLoading] = useState(false);
     const [showComparison, setShowComparison] = useState(false);
@@ -314,12 +324,27 @@ const AdminDashboard = () => {
     const [recipientType, setRecipientType] = useState('all');
     const [selectedDepartment, setSelectedDepartment] = useState('');
     const [selectedGroup, setSelectedGroup] = useState('');
-    const [selectedStaff, setSelectedStaff] = useState('');
-    const [deptMembers, setDeptMembers] = useState([]);
-    const [groupMembers, setGroupMembers] = useState([]);
+    const [selectedStaff, setSelectedStaff] = useState([]);
+    // const [deptMembers, setDeptMembers] = useState([]); // unused
+    // const [groupMembers, setGroupMembers] = useState([]); // unused
     // ...all other useState declarations...
 
     // ...existing code...
+
+    // Fetch staff users from backend
+    const [staffList, setStaffList] = useState([]);
+    useEffect(() => {
+      const fetchStaff = async () => {
+        try {
+          const res = await axios.get('http://localhost:5000/api/auth/all-users');
+          // Only include users with role 'staff'
+          setStaffList(res.data.users.filter(u => u.role === 'staff'));
+        } catch (err) {
+          setStaffList([]);
+        }
+      };
+      fetchStaff();
+    }, []);
 
     const checkSearchMatch = (item, term, type) => {
       if (!term) return true;
@@ -427,7 +452,47 @@ const AdminDashboard = () => {
       if (activeSection === 'poll-details' && selectedAnalyticsItem) {
         return (
           <section style={{ animation: 'fadeIn 0.5s ease', border: '2.5px solid', borderImage: 'linear-gradient(90deg, #B24592 0%, #F7941E 100%) 1', borderRadius: '14px', padding: '2rem', background: '#fff' }}>
-            <h2 style={{ color: '#2c3e50', marginBottom: '0.5rem' }}>{selectedAnalyticsItem.question}</h2>
+            {/* Back Button */}
+            <button
+              onClick={() => setActiveSection('view-polls')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                background: 'none',
+                border: 'none',
+                color: '#B24592',
+                fontSize: '1rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                marginBottom: '1.5rem',
+                padding: '0.5rem 0',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.color = '#F7941E';
+                e.target.style.transform = 'translateX(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.color = '#B24592';
+                e.target.style.transform = 'translateX(0)';
+              }}
+            >
+              <svg 
+                width="20" 
+                height="20" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2"
+              >
+                <path d="M19 12H5"/>
+                <path d="M12 19l-7-7 7-7"/>
+              </svg>
+              Back to All Polls
+            </button>
+
+            <h2 style={{ color: '#2c3e50', marginBottom: '0.5rem' }}>Poll Statistics: {selectedAnalyticsItem.question}</h2>
             <div style={{ color: '#666', marginBottom: '1rem' }}>
               {selectedAnalyticsItem.votes} Votes • Created {selectedAnalyticsItem.created} • <span style={{ color: selectedAnalyticsItem.status === 'Active' ? '#4BCB6B' : '#F7941E' }}>{selectedAnalyticsItem.status}</span>
             </div>
@@ -461,8 +526,8 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState('overview');
   // const [showProfileMenu, setShowProfileMenu] = useState(false); // unused
-  const [showAnalytics, setShowAnalytics] = useState(false);
-  const [analyticsType, setAnalyticsType] = useState(null); 
+  // const [showAnalytics, setShowAnalytics] = useState(false); // unused
+  // const [analyticsType, setAnalyticsType] = useState(null); // unused
   const [surveyDepartmentFilter, setSurveyDepartmentFilter] = useState('all');
   const [displayedSurvey, setDisplayedSurvey] = useState(null);
   const [selectedAnalyticsItem, setSelectedAnalyticsItem] = useState(null);
@@ -478,7 +543,7 @@ const AdminDashboard = () => {
   }, [searchTerm, startDate, endDate, surveyDepartmentFilter]);
 
   const handleDelete = (id, list, setList, typeName, nameField = 'title') => {
-    const itemToDelete = list.find(item => item.id === id);
+    // const itemToDelete = list.find(item => item.id === id); // unused
     const originalList = [...list];
     
     // Optimistic delete
@@ -496,57 +561,21 @@ const AdminDashboard = () => {
   };
 
   const [chartType, setChartType] = useState('bar');
-  const [surveyQuestions, setSurveyQuestions] = useState([{ text: '', options: ['', ''], required: false }]);
+  // const [surveyQuestions, setSurveyQuestions] = useState([{ text: '', options: ['', ''], required: false }]); // duplicate, defined at top
 
-  const handleSurveyQuestionChange = (qIdx, value) => {
-    setSurveyQuestions(questions => questions.map((q, i) => i === qIdx ? { ...q, text: value } : q));
-  };
+  // const handleSurveyQuestionChange = (qIdx, value) => {}; // unused
+  // const addSurveyQuestion = () => {}; // unused
+  // const removeSurveyQuestion = (qIdx) => {}; // unused
+  // const handleSurveyOptionChange = (qIdx, oIdx, value) => {}; // unused
+  // const handleSurveyRequiredChange = (qIdx, value) => {}; // unused
+  // const addSurveyOption = (qIdx) => {}; // unused
+  // const removeSurveyOption = (qIdx, oIdx) => {}; // unused
+  // const [pollOptions, setPollOptions] = useState(['', '']); // unused
 
-  const addSurveyQuestion = () => {
-    setSurveyQuestions(questions => [...questions, { text: '', options: ['', ''], required: false }]);
-  };
-
-  const removeSurveyQuestion = (qIdx) => {
-    setSurveyQuestions(questions => questions.length > 1 ? questions.filter((_, i) => i !== qIdx) : questions);
-  };
-
-  const handleSurveyOptionChange = (qIdx, oIdx, value) => {
-    setSurveyQuestions(questions => questions.map((q, i) => i === qIdx ? { ...q, options: q.options.map((opt, j) => j === oIdx ? value : opt) } : q));
-  };
-  const handleSurveyRequiredChange = (qIdx, value) => {
-    setSurveyQuestions(questions => questions.map((q, i) => i === qIdx ? { ...q, required: value } : q));
-  };
-
-  const addSurveyOption = (qIdx) => {
-    setSurveyQuestions(questions => questions.map((q, i) => i === qIdx ? { ...q, options: [...q.options, ''] } : q));
-  };
-
-  const removeSurveyOption = (qIdx, oIdx) => {
-    setSurveyQuestions(questions => questions.map((q, i) => i === qIdx ? { ...q, options: q.options.length > 1 ? q.options.filter((_, j) => j !== oIdx) : q.options } : q));
-  };
-  const [pollOptions, setPollOptions] = useState(['', '']);
-
-  const handlePollOptionChange = (index, value) => {
-    const newOptions = [...pollOptions];
-    newOptions[index] = value;
-    setPollOptions(newOptions);
-  };
-
-  const addPollOption = () => {
-    setPollOptions([...pollOptions, '']);
-  };
-
-  const removePollOption = (index) => {
-    if (pollOptions.length > 2) {
-      setPollOptions(pollOptions.filter((_, i) => i !== index));
-    }
-  };
-  const [staffList] = useState([
-    { id: 1, name: 'Crystal', role: 'Staff', department: 'HR', email: 'crystal@example.com' },
-    { id: 2, name: 'John Doe', role: 'Staff', department: 'IT', email: 'john@example.com' },
-    { id: 3, name: 'Jane Smith', role: 'Manager', department: 'Marketing', email: 'jane@example.com' },
-    { id: 4, name: 'Alex Johnson', role: 'Staff', department: 'Engineering', email: 'alex@example.com' },
-  ]);
+  // const handlePollOptionChange = (index, value) => {}; // unused
+  // const addPollOption = () => {}; // unused
+  // const removePollOption = (index) => {}; // unused
+  // Removed duplicate staffList declaration
   const [staffSearch, setStaffSearch] = useState('');
 
   const [departmentList, setDepartmentList] = useState([
@@ -562,39 +591,61 @@ const AdminDashboard = () => {
     { id: 3, name: 'Management', members: 4 },
   ]);
 
-  const [surveyList, setSurveyList] = useState([
-    { 
-      id: 1, 
-      title: 'Q1 Employee Satisfaction', 
-      responses: 18, 
-      status: 'Active', 
-      created: '1 day ago', 
-      summary: 'Most employees are satisfied with their work environment.',
-      dailyResponses: [
-        { label: 'Mon', value: 2 }, { label: 'Tue', value: 5 }, { label: 'Wed', value: 8 }, { label: 'Thu', value: 3 }
-      ],
-      questions: [
-        { type: 'choice', text: "How would you rate your overall satisfaction?", options: [{ label: "Very Satisfied", count: 10 }, { label: "Satisfied", count: 5 }, { label: "Neutral", count: 2 }, { label: "Dissatisfied", count: 1 }] },
-        { type: 'choice', text: "Do you feel your feedback is valued?", options: [{ label: "Yes", count: 12 }, { label: "No", count: 6 }] },
-        { type: 'choice', text: "How likely are you to recommend us?", options: [{ label: "Likely", count: 15 }, { label: "Unlikely", count: 3 }] },
-        { 
-          type: 'text', 
-          text: "What improvements would you suggest?", 
-          textResponses: [
-            "More flexible hours would be great.",
-            "Better coffee in the breakroom!",
-            "I'd love more team building events.",
-            "Clearer promotion paths needed."
-          ]
-        }
-      ]
-    },
-    { id: 2, title: 'New IT Policy Feedback', responses: 5, status: 'Draft', created: '5 hours ago', summary: 'Pending more responses.', questions: [
-        { type: 'choice', text: "Is the new policy clear?", options: [{ label: "Yes", count: 3 }, { label: "No", count: 2 }] }
-    ],
-    dailyResponses: [] 
-    },
-  ]);
+  const [surveyList, setSurveyList] = useState([]);
+
+  // Fetch all surveys created by the admin from backend
+  useEffect(() => {
+    const fetchAdminSurveys = async () => {
+      try {
+        const res = await axios.get('/api/surveys/all');
+        // Transform backend survey data to match frontend analytics structure if needed
+        const surveys = (res.data || []).map(survey => {
+          // Calculate number of responses
+          const responsesCount = Array.isArray(survey.responses) ? survey.responses.length : 0;
+          // Map questions and aggregate answers
+          const questions = (survey.questions || []).map(q => {
+            if (q.type === 'text') {
+              // Collect all text answers for this question
+              const textResponses = (survey.responses || []).map(r => {
+                const ans = (r.answers || []).find(a => a.questionId === String(q._id));
+                return ans ? ans.answer : null;
+              }).filter(Boolean);
+              return { ...q, textResponses };
+            } else if (q.type === 'multiple-choice' || q.type === 'choice' || q.type === 'rating') {
+              // Count answers for each option
+              const optionCounts = (q.options || []).map(opt => {
+                const count = (survey.responses || []).filter(r => {
+                  const ans = (r.answers || []).find(a => a.questionId === String(q._id));
+                  if (Array.isArray(ans?.answer)) {
+                    return ans.answer.includes(opt);
+                  }
+                  return ans && ans.answer === opt;
+                }).length;
+                return { label: opt, count };
+              });
+              return { ...q, options: optionCounts };
+            }
+            return q;
+          });
+          return {
+            id: survey._id,
+            title: survey.title,
+            responses: responsesCount,
+            status: survey.status || 'Active',
+            created: new Date(survey.createdAt).toLocaleDateString(),
+            summary: survey.description,
+            questions,
+            dailyResponses: [], // Optionally, aggregate daily responses if needed
+            raw: survey
+          };
+        });
+        setSurveyList(surveys);
+      } catch (err) {
+        setSurveyList([]);
+      }
+    };
+    fetchAdminSurveys();
+  }, []);
 
   const [activePollsList, setActivePollsList] = useState([
     { 
@@ -669,7 +720,7 @@ const AdminDashboard = () => {
     { label: 'Groups', value: groupList.length, color: '#4BCB6B', onClick: () => setActiveSection('view-groups') },
   ];
 
-  const gotoAdminDashboard = () => { setActiveSection('overview'); };
+  // const gotoAdminDashboard = () => { setActiveSection('overview'); }; // unused
 
   const cardStyle = {
     background: 'white',
@@ -691,16 +742,7 @@ const AdminDashboard = () => {
     transition: 'border-color 0.2s'
   };
 
-  const getNavItemStyle = (section, isMobile = false) => ({
-    padding: '12px 20px',
-    cursor: 'pointer',
-    backgroundColor: activeSection === section ? '#fff0f7' : 'transparent',
-    color: activeSection === section ? '#B24592' : (isMobile ? '#555' : '#fff'),
-    fontWeight: activeSection === section ? '700' : '500',
-    fontSize: '1.05rem',
-    borderLeft: activeSection === section ? '4px solid #B24592' : '4px solid transparent',
-    transition: 'all 0.2s ease'
-  });
+  // const getNavItemStyle = (section, isMobile = false) => ({ ... }); // unused
 
   const chartColors = ['#B24592', '#C05688', '#CE677E', '#DC7874', '#EA896A', '#F7941E'];
 
@@ -715,26 +757,12 @@ const AdminDashboard = () => {
     transition: 'all 0.2s'
   });
 
-  const dragItem = useRef();
-  const dragOverItem = useRef();
+  // const dragItem = useRef(); // unused
+  // const dragOverItem = useRef(); // unused
 
-  const handleDragStart = (e, position) => {
-    dragItem.current = position;
-  };
-
-  const handleDragEnter = (e, position) => {
-    dragOverItem.current = position;
-  };
-
-  const handleDragEnd = (e) => {
-    const copyListItems = [...pollOptions];
-    const dragItemContent = copyListItems[dragItem.current];
-    copyListItems.splice(dragItem.current, 1);
-    copyListItems.splice(dragOverItem.current, 0, dragItemContent);
-    dragItem.current = null;
-    dragOverItem.current = null;
-    setPollOptions(copyListItems);
-  };
+  // const handleDragStart = (e, position) => {}; // unused
+  // const handleDragEnter = (e, position) => {}; // unused
+  // const handleDragEnd = (e) => {}; // unused
 
   const renderMultiSelect = (selectedItems, setSelectedItems, placeholder = "Search staff...") => (
     <div style={{
@@ -774,6 +802,18 @@ const AdminDashboard = () => {
       </div>
     </div>
   );
+
+
+  // Fetch polls from backend on mount
+  useEffect(() => {
+    axios.get('/api/surveys/my-polls')
+      .then(res => {
+        setActivePollsList(res.data.polls || []);
+      })
+      .catch(err => {
+        console.error('Failed to fetch polls:', err);
+      });
+  }, []);
 
   const SkeletonLoader = () => (
     <div>
@@ -843,187 +883,456 @@ const AdminDashboard = () => {
     color: '#666'
   };
 
+  const handleSidebarToggle = () => {
+    setSidebarCollapsed(!sidebarCollapsed);
+  };
+
+  const gotoProfile = () => {
+    setActiveSection('profile');
+  };
+
   return (
     <div className="admin-dashboard" style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
       <style>{responsiveStyles}</style>
-      <button className="hamburger-menu" onClick={() => setShowMobileMenu(true)}>
-        <span className="bar"></span>
-        <span className="bar"></span>
-        <span className="bar"></span>
-      </button>
+      
+      {/* Modern Sidebar */}
+      <AdminSidebar
+        activeSection={activeSection}
+        setActiveSection={setActiveSection}
+        activePollCount={activePollsList.length}
+        activeSurveyCount={surveyList.filter(s => s.status === 'Active').length}
+        gotoProfile={gotoProfile}
+        navigate={navigate}
+        collapsed={sidebarCollapsed}
+        onToggle={handleSidebarToggle}
+        showMobileMenu={showMobileMenu}
+      />
+
+      {/* Mobile Menu Overlay */}
       {showMobileMenu && (
-        <>
-          <div className="mobile-sidebar-overlay" onClick={() => setShowMobileMenu(false)}></div>
-          <div className="mobile-sidebar-dropdown">
-            <div className="sidebar-logo" style={{ padding: '2rem 1rem', textAlign: 'center' }}>
-              <img src={process.env.PUBLIC_URL + '/vp-pic.png'} onClick={() => {gotoAdminDashboard(); setShowMobileMenu(false);}} alt="Virtual Pay Logo" className="dashboard-logo dashboard-logo-img" style={{ cursor: 'pointer' }} />
-            </div>
-            <nav style={{ marginTop: '1rem' }}>
-              <ul style={{ listStyle: 'none', padding: 0 }}>
-                <li>
-                  <div 
-                    role="button" 
-                    tabIndex="0"
-                    style={{
-                      ...getNavItemStyle('polls', true),
-                      backgroundColor: ['create-poll', 'view-polls'].includes(activeSection) ? '#fff0f7' : 'transparent',
-                      color: ['create-poll', 'view-polls'].includes(activeSection) ? '#B24592' : '#555',
-                      borderLeft: ['create-poll', 'view-polls'].includes(activeSection) ? '4px solid #B24592' : '4px solid transparent',
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'center'
-                    }}
-                    onClick={() => setPollsDropdownOpen(!pollsDropdownOpen)}
-                  >
-                    Polls
-                    <span style={{ fontSize: '0.7rem', transition: 'transform 0.2s', transform: pollsDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
-                  </div>
-                  {pollsDropdownOpen && (
-                    <ul style={{ listStyle: 'none', padding: 0, background: '#f9f9f9' }}>
-                      <li tabIndex="0" role="button" style={{...getNavItemStyle('create-poll', true), paddingLeft: '40px'}} onClick={() => { setActiveSection('create-poll'); setShowMobileMenu(false); }}>Create Poll</li>
-                      <li tabIndex="0" role="button" style={{...getNavItemStyle('view-polls', true), paddingLeft: '40px'}} onClick={() => { setActiveSection('view-polls'); setShowMobileMenu(false); }}>All Polls</li>
-                    </ul>
-                  )}
-                </li>
-                <li>
-                  <div 
-                    role="button" 
-                    tabIndex="0"
-                    style={{
-                      ...getNavItemStyle('surveys', true),
-                      backgroundColor: ['create-survey', 'view-surveys'].includes(activeSection) ? '#fff0f7' : 'transparent',
-                      color: ['create-survey', 'view-surveys'].includes(activeSection) ? '#B24592' : '#555',
-                      borderLeft: ['create-survey', 'view-surveys'].includes(activeSection) ? '4px solid #B24592' : '4px solid transparent',
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'center'
-                    }}
-                    onClick={() => setSurveysDropdownOpen(!surveysDropdownOpen)}
-                  >
-                    Surveys
-                    <span style={{ fontSize: '0.7rem', transition: 'transform 0.2s', transform: surveysDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
-                  </div>
-                  {surveysDropdownOpen && (
-                    <ul style={{ listStyle: 'none', padding: 0, background: '#f9f9f9' }}>
-                      <li tabIndex="0" role="button" style={{...getNavItemStyle('create-survey', true), paddingLeft: '40px'}} onClick={() => { setActiveSection('create-survey'); setShowMobileMenu(false); }}>Create Survey</li>
-                      <li tabIndex="0" role="button" style={{...getNavItemStyle('view-surveys', true), paddingLeft: '40px'}} onClick={() => { setActiveSection('view-surveys'); setShowMobileMenu(false); }}>All Surveys</li>
-                    </ul>
-                  )}
-                </li>
-                <li tabIndex="0" role="button" style={getNavItemStyle('create-department', true)} onClick={() => { setActiveSection('create-department'); setShowMobileMenu(false); }}>Create Department</li>
-                <li tabIndex="0" role="button" style={getNavItemStyle('create-group', true)} onClick={() => { setActiveSection('create-group'); setShowMobileMenu(false); }}>Create Group</li>
-                <li tabIndex="0" role="button" style={getNavItemStyle('profile', true)} onClick={() => { setActiveSection('profile'); setShowMobileMenu(false); }}>Profile</li>
-                <li tabIndex="0" role="button" style={getNavItemStyle('logout', true)} onClick={() => navigate('/')}>Log Out</li>
-              </ul>
-            </nav>
-          </div>
-        </>
+        <div 
+          className="mobile-overlay" 
+          onClick={() => setShowMobileMenu(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 999
+          }}
+        />
       )}
-      <aside className="sidebar-nav" style={{ boxShadow: '2px 0 16px rgba(0,0,0,0.08)', zIndex: 100, background: 'linear-gradient(135deg, #7D1F4B 0%, #B24592 100%)' }}>
-        <div className="sidebar-logo" style={{ padding: '1rem 1.5rem', textAlign: 'center' }}>
-          <img src={process.env.PUBLIC_URL + '/vp-pic.png'} onClick={gotoAdminDashboard} alt="Virtual Pay Logo" className="dashboard-logo dashboard-logo-img" style={{ cursor: 'pointer' }} />
-        </div>
-        <nav style={{ marginTop: '0.3rem' }}>
-          <ul style={{ listStyle: 'none', padding: 0 }}>
-            <li onMouseEnter={() => setPollsDropdownOpen(true)} onMouseLeave={() => setPollsDropdownOpen(false)}>
-              <div 
-                role="button" 
-                tabIndex="0"
-                style={{
-                  ...getNavItemStyle('polls'),
-                  backgroundColor: ['create-poll', 'view-polls'].includes(activeSection) ? '#fff0f7' : 'transparent',
-                  color: ['create-poll', 'view-polls'].includes(activeSection) ? '#B24592' : '#fff',
-                  borderLeft: ['create-poll', 'view-polls'].includes(activeSection) ? '4px solid #B24592' : '4px solid transparent',
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center'
-                }}
-                onClick={() => setPollsDropdownOpen(!pollsDropdownOpen)}
-              >
-                Polls
-                <span style={{ fontSize: '0.7rem', transition: 'transform 0.2s', transform: pollsDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
+
+      {/* Main Content Area */}
+      <div 
+        className="main-layout"
+        style={{
+          flex: 1,
+          marginLeft: sidebarCollapsed ? '64px' : '256px',
+          transition: 'margin-left 0.3s ease',
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: '100vh'
+        }}
+      >
+        {/* Modern Header */}
+        <Header 
+          staffName="Admin User"
+          profilePhoto={adminProfile.photo}
+          onMobileMenuToggle={() => setShowMobileMenu(!showMobileMenu)}
+          showMobileMenuButton={true}
+        />
+
+        {/* Main Content */}
+        <main 
+          className="main-content" 
+          style={{ 
+            flex: 1, 
+            padding: '2rem',
+            overflowY: 'auto',
+            backgroundColor: '#f8f9fa'
+          }}
+        >
+          {/* Modern Dashboard Overview */}
+          {activeSection === 'overview' && (
+            <div style={{ animation: 'fadeIn 0.5s ease' }}>
+              <div style={{ marginBottom: '2rem' }}>
+                <h1 style={{ 
+                  fontSize: '2rem', 
+                  fontWeight: 700, 
+                  marginBottom: '0.5rem',
+                  color: '#1e293b'
+                }}>
+                  Dashboard Overview
+                </h1>
+                <p style={{ 
+                  color: '#64748b', 
+                  fontSize: '1rem',
+                  margin: 0 
+                }}>
+                  Overview of system performance and activity
+                </p>
               </div>
-              <ul style={{ 
-                listStyle: 'none', 
-                padding: 0, 
-                display: pollsDropdownOpen ? 'block' : 'none',
-                backgroundColor: 'rgba(0,0,0,0.1)' 
-              }}>
-                <li tabIndex="0" role="button" style={{...getNavItemStyle('create-poll'), paddingLeft: '40px', fontSize: '0.95rem'}} onClick={() => setActiveSection('create-poll')}>Create Poll</li>
-                <li tabIndex="0" role="button" style={{...getNavItemStyle('view-polls'), paddingLeft: '40px', fontSize: '0.95rem'}} onClick={() => setActiveSection('view-polls')}>All Polls</li>
-              </ul>
-            </li>
-            <li onMouseEnter={() => setSurveysDropdownOpen(true)} onMouseLeave={() => setSurveysDropdownOpen(false)}>
-              <div 
-                role="button" 
-                tabIndex="0"
-                style={{
-                  ...getNavItemStyle('surveys'),
-                  backgroundColor: ['create-survey', 'view-surveys'].includes(activeSection) ? '#fff0f7' : 'transparent',
-                  color: ['create-survey', 'view-surveys'].includes(activeSection) ? '#B24592' : '#fff',
-                  borderLeft: ['create-survey', 'view-surveys'].includes(activeSection) ? '4px solid #B24592' : '4px solid transparent',
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center'
-                }}
-                onClick={() => setSurveysDropdownOpen(!surveysDropdownOpen)}
-              >
-                Surveys
-                <span style={{ fontSize: '0.7rem', transition: 'transform 0.2s', transform: surveysDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
-              </div>
-              <ul style={{ 
-                listStyle: 'none', 
-                padding: 0, 
-                display: surveysDropdownOpen ? 'block' : 'none',
-                backgroundColor: 'rgba(0,0,0,0.1)' 
-              }}>
-                <li tabIndex="0" role="button" style={{...getNavItemStyle('create-survey'), paddingLeft: '40px', fontSize: '0.95rem'}} onClick={() => setActiveSection('create-survey')}>Create Survey</li>
-                <li tabIndex="0" role="button" style={{...getNavItemStyle('view-surveys'), paddingLeft: '40px', fontSize: '0.95rem'}} onClick={() => setActiveSection('view-surveys')}>All Surveys</li>
-              </ul>
-            </li>
-            <li tabIndex="0" role="button" style={getNavItemStyle('create-department')} onClick={() => setActiveSection('create-department')}>Create Department</li>
-            <li tabIndex="0" role="button" style={getNavItemStyle('create-group')} onClick={() => setActiveSection('create-group')}>Create Group</li>
-            <li tabIndex="0" role="button" style={getNavItemStyle('profile')} onClick={() => setActiveSection('profile')}>Profile</li>
-            <li tabIndex="0" role="button" style={getNavItemStyle('logout')} onClick={() => navigate('/')}>Log Out</li>
-          </ul>
-        </nav>
-      </aside>
-      {toast.show && (
-        <div className="toast-notification">
-          <span>{toast.message}</span>
-          {toast.action && (
-            <button className="toast-undo-btn" onClick={toast.action}>UNDO</button>
-          )}
-        </div>
-      )}
-      <div className="admin-main-wrapper" style={{ flex: 1, display: 'flex', flexDirection: 'column', marginLeft: '180px' }}>
-        <main className="admin-main-content" style={{ flex: 1, padding: '2.5rem 1rem 2.5rem 0.5rem', overflowY: 'auto' }}>
-          {activeSection !== 'overview' && (
-            <button
-              onClick={() => setActiveSection('overview')}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#B24592',
-                fontSize: '1.6rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                marginBottom: '0.3rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
+              
+              {/* Enhanced KPI Cards */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                gap: '2rem',
+                marginBottom: '3rem'
               }}
-              aria-label="Back to Overview"
-            >
-              <span style={{ fontSize: '2rem', lineHeight: 1 }}>&larr;</span>
-              <span style={{
-                background: 'linear-gradient(90deg, #F7941E 0%, #B24592 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-                fontWeight: 700
-              }}>Back to Overview</span>
-            </button>
+              className="kpi-cards-grid"
+              >
+                {stats.map((stat, index) => (
+                  <Card 
+                    key={index} 
+                    onClick={stat.onClick}
+                    style={{
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '12px',
+                      boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+                      background: '#ffffff',
+                      position: 'relative',
+                      overflow: 'hidden'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)';
+                    }}
+                  >
+                    <CardContent style={{ padding: '1.5rem', position: 'relative' }}>
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start'
+                      }}>
+                        <div style={{ flex: 1 }}>
+                          <p style={{
+                            fontSize: '0.875rem',
+                            color: '#64748b',
+                            marginBottom: '0.5rem',
+                            margin: 0,
+                            fontWeight: 500
+                          }}>
+                            {stat.label}
+                          </p>
+                          <p style={{
+                            fontSize: '2rem',
+                            fontWeight: 700,
+                            color: '#0f172a',
+                            margin: 0,
+                            lineHeight: 1,
+                            marginTop: '0.25rem'
+                          }}>
+                            {stat.value}
+                          </p>
+                        </div>
+                        <div style={{
+                          width: '3rem',
+                          height: '3rem',
+                          borderRadius: '12px',
+                          background: `${stat.color}15`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0
+                        }}>
+                          {/* Icon based on stat type */}
+                          <svg 
+                            width="24" 
+                            height="24" 
+                            viewBox="0 0 24 24" 
+                            fill="none" 
+                            stroke={stat.color} 
+                            strokeWidth="2"
+                            strokeLinecap="round" 
+                            strokeLinejoin="round"
+                          >
+                            {stat.label === 'Total Staff' && (
+                              <>
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                <circle cx="12" cy="7" r="4"/>
+                              </>
+                            )}
+                            {stat.label === 'Active Polls' && (
+                              <>
+                                <line x1="18" y1="20" x2="18" y2="10"/>
+                                <line x1="12" y1="20" x2="12" y2="4"/>
+                                <line x1="6" y1="20" x2="6" y2="14"/>
+                              </>
+                            )}
+                            {stat.label === 'Departments' && (
+                              <>
+                                <path d="M3 21h18"/>
+                                <path d="M5 21V7l8-4v18"/>
+                                <path d="M19 21V11l-6-4"/>
+                              </>
+                            )}
+                            {stat.label === 'Groups' && (
+                              <>
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                <circle cx="9" cy="7" r="4"/>
+                                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                              </>
+                            )}
+                          </svg>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Recent Activity Table - Survey Template Style */}
+              <Card>
+                <CardHeader>
+                  <CardTitle style={{
+                    fontSize: '1.5rem',
+                    color: '#0f172a',
+                    margin: 0
+                  }}>
+                    Recent Activity
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {[
+                    {
+                      type: 'poll',
+                      title: 'New poll created: "Team Building Activity"',
+                      time: '2 minutes ago',
+                      user: 'Admin',
+                      color: '#F7941E',
+                      icon: '📊'
+                    },
+                    {
+                      type: 'survey',
+                      title: 'Survey "Q1 Employee Satisfaction" completed',
+                      time: '1 hour ago',
+                      user: 'Crystal',
+                      color: '#B24592',
+                      icon: '📋'
+                    },
+                    {
+                      type: 'staff',
+                      title: 'New staff member added to HR department',
+                      time: '3 hours ago',
+                      user: 'Admin',
+                      color: '#4BCB6B',
+                      icon: '👥'
+                    },
+                    {
+                      type: 'department',
+                      title: 'Engineering department updated',
+                      time: '1 day ago',
+                      user: 'Alex Johnson',
+                      color: '#7D1F4B',
+                      icon: '🏢'
+                    }
+                  ].length > 0 ? (
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%' }}>
+                        <thead>
+                          <tr style={{ 
+                            borderBottom: '1px solid #e2e8f0'
+                          }}>
+                            <th style={{
+                              textAlign: 'left',
+                              padding: '0.75rem 1rem',
+                              fontSize: '0.875rem',
+                              fontWeight: 600,
+                              color: '#0f172a'
+                            }}>
+                              Activity Name
+                            </th>
+                            <th style={{
+                              textAlign: 'left',
+                              padding: '0.75rem 1rem',
+                              fontSize: '0.875rem',
+                              fontWeight: 600,
+                              color: '#0f172a'
+                            }}>
+                              Staff Member
+                            </th>
+                            <th style={{
+                              textAlign: 'left',
+                              padding: '0.75rem 1rem',
+                              fontSize: '0.875rem',
+                              fontWeight: 600,
+                              color: '#0f172a'
+                            }}>
+                              Status
+                            </th>
+                            <th style={{
+                              textAlign: 'left',
+                              padding: '0.75rem 1rem',
+                              fontSize: '0.875rem',
+                              fontWeight: 600,
+                              color: '#0f172a'
+                            }}>
+                              Timestamp
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[
+                            {
+                              activityName: 'Team Building Activity Poll',
+                              staffName: 'Admin',
+                              status: 'Created',
+                              timestamp: '2 minutes ago',
+                              color: '#F7941E'
+                            },
+                            {
+                              activityName: 'Q1 Employee Satisfaction',
+                              staffName: 'Crystal',
+                              status: 'Completed',
+                              timestamp: '1 hour ago',
+                              color: '#B24592'
+                            },
+                            {
+                              activityName: 'HR Department Update',
+                              staffName: 'Admin',
+                              status: 'Added',
+                              timestamp: '3 hours ago',
+                              color: '#4BCB6B'
+                            },
+                            {
+                              activityName: 'Engineering Department',
+                              staffName: 'Alex Johnson',
+                              status: 'Updated',
+                              timestamp: '1 day ago',
+                              color: '#7D1F4B'
+                            }
+                          ].map((activity, index) => (
+                            <tr 
+                              key={index}
+                              style={{
+                                borderBottom: '1px solid #e2e8f0',
+                                transition: 'background-color 0.2s ease'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = '#f8fafc';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = 'transparent';
+                              }}
+                            >
+                              <td style={{ padding: '1rem' }}>
+                                <div style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.5rem'
+                                }}>
+                                  <div style={{
+                                    width: '1rem',
+                                    height: '1rem',
+                                    color: '#64748b'
+                                  }}>
+                                    📋
+                                  </div>
+                                  <span style={{
+                                    fontWeight: 500,
+                                    color: '#0f172a'
+                                  }}>
+                                    {activity.activityName}
+                                  </span>
+                                </div>
+                              </td>
+                              <td style={{ padding: '1rem' }}>
+                                <div style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.5rem'
+                                }}>
+                                  <div style={{
+                                    width: '2rem',
+                                    height: '2rem',
+                                    borderRadius: '50%',
+                                    background: 'linear-gradient(135deg, #F7941E, #B24592)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                  }}>
+                                    <div style={{
+                                      width: '1rem',
+                                      height: '1rem',
+                                      color: 'white'
+                                    }}>
+                                      👥
+                                    </div>
+                                  </div>
+                                  <span style={{ color: '#0f172a' }}>
+                                    {activity.staffName}
+                                  </span>
+                                </div>
+                              </td>
+                              <td style={{ padding: '1rem' }}>
+                                <span style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.25rem',
+                                  padding: '0.25rem 0.75rem',
+                                  borderRadius: '9999px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 500,
+                                  background: activity.status === 'Completed' ? '#dcfce7' : 
+                                            activity.status === 'Created' ? '#fef3c7' : 
+                                            activity.status === 'Added' ? '#dbeafe' : '#f3e8ff',
+                                  color: activity.status === 'Completed' ? '#166534' : 
+                                        activity.status === 'Created' ? '#92400e' : 
+                                        activity.status === 'Added' ? '#1e40af' : '#7c3aed'
+                                }}>
+                                  {activity.status === 'Completed' && '✓'}
+                                  {activity.status === 'Created' && '⏱️'}
+                                  {activity.status === 'Added' && '➕'}
+                                  {activity.status === 'Updated' && '✏️'}
+                                  {activity.status}
+                                </span>
+                              </td>
+                              <td style={{ 
+                                padding: '1rem',
+                                color: '#64748b'
+                              }}>
+                                {activity.timestamp}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div style={{
+                      textAlign: 'center',
+                      padding: '3rem'
+                    }}>
+                      <div style={{
+                        width: '3rem',
+                        height: '3rem',
+                        color: '#64748b',
+                        margin: '0 auto 1rem'
+                      }}>
+                        📋
+                      </div>
+                      <p style={{
+                        color: '#64748b',
+                        margin: 0
+                      }}>
+                        No recent activity
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           )}
 
           {activeSection === 'create-poll' && (
@@ -1105,31 +1414,49 @@ const AdminDashboard = () => {
           )}
 
           {activeSection === 'poll-settings' && (
-            <section style={{ animation: 'fadeIn 0.5s ease', position: 'relative' }}>
+            <section style={{ animation: 'fadeIn 0.5s ease' }}>
+              {/* Back Button */}
               <button
                 onClick={() => setActiveSection('create-poll')}
                 style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
                   background: 'none',
                   border: 'none',
                   color: '#B24592',
-                  fontSize: '1.3rem',
-                  fontWeight: 700,
+                  fontSize: '1rem',
+                  fontWeight: 600,
                   cursor: 'pointer',
-                  marginBottom: '1rem',
-                  padding: '0.2rem 0.7rem 0.2rem 0.2rem',
-                  zIndex: 2,
-                  display: 'flex',
-                  alignItems: 'center'
+                  marginBottom: '1.5rem',
+                  padding: '0.5rem 0',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.color = '#F7941E';
+                  e.target.style.transform = 'translateX(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.color = '#B24592';
+                  e.target.style.transform = 'translateX(0)';
                 }}
                 aria-label="Back to Edit Poll"
               >
-                <span style={{ fontSize: '1.7rem', lineHeight: 1, marginRight: '0.3rem' }}>&larr;</span>
-                <span style={{ fontSize: '1.05rem', fontWeight: 600 }}>Back to Edit</span>
+                <svg 
+                  width="20" 
+                  height="20" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="2"
+                >
+                  <path d="M19 12H5"/>
+                  <path d="M12 19l-7-7 7-7"/>
+                </svg>
+                Back to Edit Poll
               </button>
-              <h2 style={{ color: '#2c3e50', marginBottom: '1.5rem', marginLeft: '2.5rem' }}>Poll Settings</h2>
+
+              <h2 style={{ color: '#2c3e50', marginBottom: '1.5rem' }}>Poll Settings</h2>
               <Formik
                 initialValues={{
                   recipientType: 'all',
@@ -1141,36 +1468,66 @@ const AdminDashboard = () => {
                 }}
                 validationSchema={Yup.object({
                   recipientType: Yup.string().required('Recipient type is required'),
-                  selectedDepartment: Yup.string().when('recipientType', {
-                    is: 'department',
-                    then: Yup.string().required('Department is required'),
+                  selectedDepartment: Yup.string().when('recipientType', (value, schema) => {
+                    if (value === 'department') {
+                      return schema.required('Department is required');
+                    }
+                    return schema;
                   }),
-                  selectedGroup: Yup.string().when('recipientType', {
-                    is: 'group',
-                    then: Yup.string().required('Group is required'),
+                  selectedGroup: Yup.string().when('recipientType', (value, schema) => {
+                    if (value === 'group') {
+                      return schema.required('Group is required');
+                    }
+                    return schema;
                   }),
-                  selectedStaff: Yup.array().when('recipientType', {
-                    is: 'individual',
-                    then: Yup.array().min(1, 'Select at least one staff member'),
+                  selectedStaff: Yup.array().when('recipientType', (value, schema) => {
+                    if (value === 'individual') {
+                      return schema.min(1, 'Select at least one staff member');
+                    }
+                    return schema;
                   })
                 })}
                 onSubmit={(values, { setSubmitting, resetForm }) => {
-                  let recipients = [];
+                  let recipientUserIds = [];
                   if (values.recipientType === 'all') {
-                    recipients = staffList.map(s => s.email);
+                    recipientUserIds = staffList.map(s => s._id);
                   } else if (values.recipientType === 'department' && values.selectedDepartment) {
-                    recipients = staffList.filter(s => s.department === values.selectedDepartment).map(s => s.email);
+                    recipientUserIds = staffList.filter(s => s.department === values.selectedDepartment).map(s => s._id);
                   } else if (values.recipientType === 'group' && values.selectedGroup) {
                     const group = groupList.find(g => g.name === values.selectedGroup);
                     if (group) {
                       const memberNames = group.members && Array.isArray(group.members) ? group.members : (typeof group.members === 'string' ? group.members.split(',').map(m => m.trim()) : []);
-                      recipients = staffList.filter(s => memberNames.includes(s.name)).map(s => s.email);
+                      recipientUserIds = staffList.filter(s => memberNames.includes(s.name)).map(s => s._id);
                     }
                   } else if (values.recipientType === 'individual' && values.selectedStaff.length > 0) {
-                    recipients = values.selectedStaff;
+                    recipientUserIds = staffList.filter(s => values.selectedStaff.includes(s.email)).map(s => s._id);
                   }
-                  alert('Poll will be sent to: ' + recipients.join(', '));
-                  setSubmitting(false);
+                  // Send poll to backend (correct endpoint and payload)
+                  axios.post('/api/polls/', {
+                    question: values.question,
+                    options: values.options,
+                    anonymous: values.anonymous,
+                    recipients: { users: recipientUserIds },
+                  })
+                  .then(res => {
+                    alert('Poll sent successfully!');
+                    resetForm();
+                    // Refresh poll list
+                    axios.get('/api/polls/all')
+                      .then(res => {
+                        setActivePollsList(res.data || []);
+                      });
+                    // Navigate to overview/dashboard
+                    if (typeof window !== 'undefined') {
+                      setTimeout(() => { window.location.hash = '#/admin/overview'; }, 500);
+                    }
+                  })
+                  .catch(err => {
+                    alert('Failed to send poll: ' + (err.response?.data?.message || err.message));
+                  })
+                  .finally(() => {
+                    setSubmitting(false);
+                  });
                 }}
               >
                 {({ values, setFieldValue, isSubmitting, errors, touched }) => (
@@ -1241,47 +1598,24 @@ const AdminDashboard = () => {
                               outline: 'none'
                             }}
                           />
-                          <div style={{ maxHeight: 140, overflowY: 'auto' }}>
+                          <div style={{ maxHeight: 180, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '8px' }}>
                             {staffList.filter(staff =>
                               !values.staffSearch || staff.name.toLowerCase().includes(values.staffSearch.toLowerCase()) || staff.email.toLowerCase().includes(values.staffSearch.toLowerCase())
                             ).map(staff => (
-                              <label key={staff.id} style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 10,
-                                padding: '6px 8px',
-                                borderRadius: 20,
-                                background: values.selectedStaff.includes(staff.email) ? '#F7941E22' : 'transparent',
-                                marginBottom: 4,
-                                cursor: 'pointer',
-                                fontWeight: 500
+                              <label key={staff._id || staff.id} style={{
+                                display: 'flex', alignItems: 'center', gap: 10, padding: '8px', borderRadius: '6px',
+                                background: values.selectedStaff.includes(staff.email) ? '#fff0f7' : '#f8f9fa',
+                                border: values.selectedStaff.includes(staff.email) ? '1px solid #B24592' : '1px solid transparent',
+                                cursor: 'pointer', transition: 'all 0.2s'
                               }}>
-                                <input
-                                  type="checkbox"
-                                  checked={values.selectedStaff.includes(staff.email)}
-                                  onChange={e => {
-                                    if (e.target.checked) {
-                                      setFieldValue('selectedStaff', [...values.selectedStaff, staff.email]);
-                                    } else {
-                                      setFieldValue('selectedStaff', values.selectedStaff.filter(email => email !== staff.email));
-                                    }
-                                  }}
-                                  style={{
-                                    accentColor: '#B24592',
-                                    width: 18,
-                                    height: 18,
-                                    borderRadius: '50%',
-                                    marginRight: 6
-                                  }}
-                                />
-                                <span style={{ color: '#7D1F4B', fontSize: '1rem' }}>{staff.name} <span style={{ color: '#888', fontSize: '0.95em' }}>({staff.email})</span></span>
+                                <input type="checkbox" checked={values.selectedStaff.includes(staff.email)} onChange={e => { if (e.target.checked) { setFieldValue('selectedStaff', [...values.selectedStaff, staff.email]); } else { setFieldValue('selectedStaff', values.selectedStaff.filter(email => email !== staff.email)); } }} style={{ accentColor: '#B24592', width: 16, height: 16, cursor: 'pointer' }} />
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                    <span style={{ color: '#333', fontSize: '0.95rem', fontWeight: 500 }}>{staff.name}</span>
+                                    <span style={{ color: '#888', fontSize: '0.8rem' }}>{staff.email}</span>
+                                </div>
                               </label>
                             ))}
-                            {staffList.filter(staff =>
-                              !values.staffSearch || staff.name.toLowerCase().includes(values.staffSearch.toLowerCase()) || staff.email.toLowerCase().includes(values.staffSearch.toLowerCase())
-                            ).length === 0 && (
-                              <div style={{ color: '#888', fontStyle: 'italic', padding: 8 }}>No staff found.</div>
-                            )}
+                            {staffList.filter(staff => !values.staffSearch || staff.name.toLowerCase().includes(values.staffSearch.toLowerCase()) || staff.email.toLowerCase().includes(values.staffSearch.toLowerCase())).length === 0 && <div style={{ color: '#888', fontStyle: 'italic', padding: 8, gridColumn: '1/-1' }}>No staff found.</div>}
                           </div>
                           <ErrorMessage name="selectedStaff" component="div" style={{ color: '#F7941E', fontSize: '0.95em', marginTop: '2px', marginLeft: '4px' }} />
                         </div>
@@ -1311,125 +1645,6 @@ const AdminDashboard = () => {
               </Formik>
             </section>
           )}
-          {activeSection === 'overview' && (
-            <section className="admin-overview-section" style={{ animation: 'fadeIn 0.5s ease' }}>
-              <h1 style={{ color: '#2c3e50', marginBottom: '1.5rem', fontSize: '1.8rem' }}>Dashboard Overview</h1>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '2.5rem' }}>
-                {stats.map((stat, index) => (
-                  <div
-                    key={index}
-                    style={{
-                      ...cardStyle,
-                      padding: '1.5rem',
-                      marginBottom: 0,
-                      cursor: stat.onClick ? 'pointer' : 'default',
-                      border: '2.5px solid',
-                      borderImage: 'linear-gradient(90deg, #B24592 0%, #F7941E 100%) 1',
-                    }}
-                    onClick={stat.onClick}
-                  >
-                    <div style={{ color: '#888', fontSize: '0.9rem', marginBottom: '0.5rem' }}>{stat.label}</div>
-                    <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: stat.color }}>{stat.value}</div>
-                  </div>
-                ))}
-              </div>
-
-              <div style={{
-                ...cardStyle,
-                border: '1.5px solid #eee',
-                background: '#fff',
-                boxShadow: 'none',
-                marginTop: '2rem',
-                padding: '2rem 1.5rem',
-              }}>
-                <h3 style={{
-                  marginBottom: '1.2rem',
-                  color: '#333',
-                  fontWeight: 700,
-                  letterSpacing: '0.2px',
-                  fontSize: '1.15rem',
-                  borderBottom: '1px solid #eee',
-                  paddingBottom: '0.5rem',
-                }}>Recent Activity</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                  <div
-                    style={{
-                      padding: '1.1rem 1.2rem',
-                      background: '#fafbfc',
-                      borderRadius: '8px',
-                      borderLeft: '4px solid #B24592',
-                      cursor: 'pointer',
-                      boxShadow: 'none',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      minHeight: '60px',
-                      justifyContent: 'center',
-                    }}
-                    title="View Poll Analytics"
-                    onClick={() => { setSelectedAnalyticsItem(activePollsList[0]); setAnalyticsType('poll'); setShowAnalytics(true); }}
-                  >
-                    <span style={{ fontWeight: 600, color: '#B24592', fontSize: '1.01rem', marginBottom: 2 }}>New Poll Created</span>
-                    <span style={{ color: '#222', fontWeight: 500, fontSize: '1.01rem', margin: '2px 0 0 0' }}>&quot;Holiday Party Preferences&quot;</span>
-                    <span style={{ fontSize: '0.88rem', color: '#888', marginTop: '4px' }}>2 hours ago by Admin</span>
-                  </div>
-                  <div
-                    style={{
-                      padding: '1.1rem 1.2rem',
-                      background: '#fafbfc',
-                      borderRadius: '8px',
-                      borderLeft: '4px solid #F7941E',
-                      cursor: 'pointer',
-                      boxShadow: 'none',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      minHeight: '60px',
-                      justifyContent: 'center',
-                    }}
-                    title="View Survey Analytics"
-                    onClick={() => { setSelectedAnalyticsItem(surveyList[0]); setActiveSection('survey-details'); setSurveyDepartmentFilter('all'); }}
-                  >
-                    <span style={{ fontWeight: 600, color: '#F7941E', fontSize: '1.01rem', marginBottom: 2 }}>New Survey Created</span>
-                    <span style={{ color: '#222', fontWeight: 500, fontSize: '1.01rem', margin: '2px 0 0 0' }}>&quot;Q1 Employee Satisfaction&quot;</span>
-                    <span style={{ fontSize: '0.88rem', color: '#888', marginTop: '4px' }}>1 day ago by Admin</span>
-                  </div>
-                </div>
-              </div>
-                  
-                  {showAnalytics && (
-                    <div style={{
-                      position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.25)', zIndex: 1000,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center'
-                    }}>
-                      <div style={{ background: 'white', borderRadius: 12, padding: '2rem', minWidth: 340, minHeight: 200, boxShadow: '0 4px 24px rgba(0,0,0,0.12)', position: 'relative' }}>
-                        <button onClick={() => setShowAnalytics(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'transparent', border: 'none', fontSize: 22, color: '#B24592', cursor: 'pointer' }}>&times;</button>
-                        <h2 style={{ color: '#7D1F4B', marginBottom: 16 }}>{analyticsType === 'poll' ? 'Poll Analytics' : 'Survey Analytics'}</h2>
-                        {analyticsType === 'poll' && selectedAnalyticsItem && (
-                          <div>
-                            <div style={{ fontWeight: 600, marginBottom: 12, fontSize: '1.1rem' }}>{selectedAnalyticsItem.question}</div>
-                            <div style={{ marginBottom: '1rem', display: 'flex', gap: '0.5rem' }}>
-                              <button onClick={() => setChartType('bar')} style={chartToggleBtnStyle(chartType === 'bar')}>Bar</button>
-                              <button onClick={() => setChartType('pie')} style={chartToggleBtnStyle(chartType === 'pie')}>Pie</button>
-                            </div>
-                            {chartType === 'bar' ? (
-                              <BarChart 
-                                data={selectedAnalyticsItem.options.map(opt => ({ label: opt.text, value: opt.votes }))} 
-                                color="#B24592" 
-                              />
-                            ) : (
-                              <PieChart
-                                data={selectedAnalyticsItem.options.map(opt => ({ label: opt.text, value: opt.votes }))}
-                                colors={chartColors}
-                              />
-                            )}
-                            <div style={{ marginTop: 16, color: '#666', borderTop: '1px solid #eee', paddingTop: 8 }}>Total responses: {selectedAnalyticsItem.votes}</div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-            </section>
-          )}
           
           {activeSection === 'create-survey' && (
             <section style={{ animation: 'fadeIn 0.5s ease' }}>
@@ -1457,6 +1672,9 @@ const AdminDashboard = () => {
                 })}
                 onSubmit={(values, { setSubmitting }) => {
                   setSubmitting(false);
+                  setSurveyTitle(values.title);
+                  setSurveyDescription(values.description);
+                  setSurveyQuestions(values.questions);
                   setActiveSection('survey-settings');
                 }}
               >
@@ -1559,96 +1777,119 @@ const AdminDashboard = () => {
           )}
 
               {activeSection === 'survey-settings' && (
-                <section style={{ animation: 'fadeIn 0.5s ease', position: 'relative' }}>
-                  <button
-                    onClick={() => setActiveSection('create-poll')}
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      background: 'none',
-                      border: 'none',
-                      color: '#B24592',
-                      fontSize: '1.3rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      marginBottom: '1rem',
-                      padding: '0.2rem 0.7rem 0.2rem 0.2rem',
-                      zIndex: 2,
-                      display: 'flex',
-                      alignItems: 'center'
-                    }}
-                    aria-label="Back to Edit Poll"
-                  >
-                    <span style={{ fontSize: '1.7rem', lineHeight: 1, marginRight: '0.3rem' }}>&larr;</span>
-                    <span style={{ fontSize: '1.05rem', fontWeight: 600 }}>Back to Edit</span>
-                  </button>
+                <section style={{ animation: 'fadeIn 0.5s ease' }}>
+                  {/* Back Button */}
                   <button
                     onClick={() => setActiveSection('create-survey')}
                     style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
                       background: 'none',
                       border: 'none',
                       color: '#B24592',
-                      fontSize: '1.3rem',
-                      fontWeight: 700,
+                      fontSize: '1rem',
+                      fontWeight: 600,
                       cursor: 'pointer',
-                      marginBottom: '1rem',
-                      padding: '0.2rem 0.7rem 0.2rem 0.2rem',
-                      zIndex: 2,
-                      display: 'flex',
-                      alignItems: 'center'
+                      marginBottom: '1.5rem',
+                      padding: '0.5rem 0',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.color = '#F7941E';
+                      e.target.style.transform = 'translateX(-2px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.color = '#B24592';
+                      e.target.style.transform = 'translateX(0)';
                     }}
                     aria-label="Back to Edit Survey"
                   >
-                    <span style={{ fontSize: '1.7rem', lineHeight: 1, marginRight: '0.3rem' }}>&larr;</span>
-                    <span style={{ fontSize: '1.05rem', fontWeight: 600 }}>Back to Edit</span>
+                    <svg 
+                      width="20" 
+                      height="20" 
+                      viewBox="0 0 24 24" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      strokeWidth="2"
+                    >
+                      <path d="M19 12H5"/>
+                      <path d="M12 19l-7-7 7-7"/>
+                    </svg>
+                    Back to Edit Survey
                   </button>
-                  <button
-                    onClick={() => setActiveSection('create-survey')}
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      background: 'none',
-                      border: 'none',
-                      color: '#B24592',
-                      fontSize: '1.3rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      marginBottom: '1rem',
-                      padding: '0.2rem 0.7rem 0.2rem 0.2rem',
-                      zIndex: 2,
-                      display: 'flex',
-                      alignItems: 'center'
-                    }}
-                    aria-label="Back to Edit Survey"
-                  >
-                    <span style={{ fontSize: '1.7rem', lineHeight: 1, marginRight: '0.3rem' }}>&larr;</span>
-                    <span style={{ fontSize: '1.05rem', fontWeight: 600 }}>Back to Edit</span>
-                  </button>
+
                   <h2 style={{ color: '#2c3e50', marginBottom: '1.5rem' }}>Survey Settings</h2>
-                  <form style={{ ...cardStyle, boxShadow: '0 4px 24px rgba(247,148,30,0.18)' }} onSubmit={e => {
+                  <form style={{ ...cardStyle, boxShadow: '0 4px 24px rgba(247,148,30,0.18)' }} onSubmit={async e => {
                     e.preventDefault();
-                    // Here you would send the survey to the selected recipients
-                    let recipients = [];
+                    // Build recipients object for backend (user IDs)
+                    let recipientUserIds = [];
                     if (recipientType === 'all') {
-                      recipients = staffList.map(s => s.email);
+                      recipientUserIds = staffList.map(s => s._id);
                     } else if (recipientType === 'department' && selectedDepartment) {
-                      recipients = staffList.filter(s => s.department === selectedDepartment).map(s => s.email);
+                      recipientUserIds = staffList.filter(s => s.department === selectedDepartment).map(s => s._id);
                     } else if (recipientType === 'group' && selectedGroup) {
-                      // For demo, assume group members are names, match by name
                       const group = groupList.find(g => g.name === selectedGroup);
                       if (group) {
                         const memberNames = group.members && Array.isArray(group.members) ? group.members : (typeof group.members === 'string' ? group.members.split(',').map(m => m.trim()) : []);
-                        recipients = staffList.filter(s => memberNames.includes(s.name)).map(s => s.email);
+                        recipientUserIds = staffList.filter(s => memberNames.includes(s.name)).map(s => s._id);
                       }
                     } else if (recipientType === 'individual' && selectedStaff.length > 0) {
-                      recipients = selectedStaff;
+                      recipientUserIds = staffList.filter(s => selectedStaff.includes(s.email)).map(s => s._id);
                     }
-                    alert('Survey will be sent to: ' + recipients.join(', '));
+                    // Collect survey data from previous step (store in state or pass as props)
+                    const surveyData = {
+                      title: surveyTitle || '',
+                      description: surveyDescription || '',
+                      questions: surveyQuestions || [],
+                      recipients: { users: recipientUserIds },
+                    };
+                    try {
+                      await axios.post('/api/surveys/', surveyData);
+                      // Fetch updated surveys so the new one appears immediately
+                      const res = await axios.get('/api/surveys/all');
+                      const surveys = (res.data || []).map(survey => {
+                        const responsesCount = Array.isArray(survey.responses) ? survey.responses.length : 0;
+                        const questions = (survey.questions || []).map(q => {
+                          if (q.type === 'text') {
+                            const textResponses = (survey.responses || []).map(r => {
+                              const ans = (r.answers || []).find(a => a.questionId === String(q._id));
+                              return ans ? ans.answer : null;
+                            }).filter(Boolean);
+                            return { ...q, textResponses };
+                          } else if (q.type === 'multiple-choice' || q.type === 'choice' || q.type === 'rating') {
+                            const optionCounts = (q.options || []).map(opt => {
+                              const count = (survey.responses || []).filter(r => {
+                                const ans = (r.answers || []).find(a => a.questionId === String(q._id));
+                                if (Array.isArray(ans?.answer)) {
+                                  return ans.answer.includes(opt);
+                                }
+                                return ans && ans.answer === opt;
+                              }).length;
+                              return { label: opt, count };
+                            });
+                            return { ...q, options: optionCounts };
+                          }
+                          return q;
+                        });
+                        return {
+                          id: survey._id,
+                          title: survey.title,
+                          responses: responsesCount,
+                          status: survey.status || 'Active',
+                          created: new Date(survey.createdAt).toLocaleDateString(),
+                          summary: survey.description,
+                          questions,
+                          dailyResponses: [],
+                          raw: survey
+                        };
+                      });
+                      setSurveyList(surveys);
+                      alert('Survey sent and saved successfully!');
+                      setActiveSection('view-surveys');
+                    } catch (err) {
+                      alert('Failed to send survey: ' + (err.response?.data?.msg || err.message));
+                    }
                   }}>
                     <label style={{ display: 'block', marginBottom: '1rem' }}>
                       <input type="checkbox" style={{ marginRight: 8 }} />
@@ -1668,52 +1909,47 @@ const AdminDashboard = () => {
                       </select>
                     </label>
                     {recipientType === 'department' && (
-                      <label style={{ display: 'block', marginBottom: '1rem' }}>
+                      <div style={{ marginBottom: '1rem' }}>
                         <span style={{ fontWeight: 600, color: '#444', marginRight: 12 }}>Choose Department:</span>
-                        <select
-                          value={selectedDepartment}
-                          onChange={e => setSelectedDepartment(e.target.value)}
-                          style={{ ...inputStyle, width: 200, display: 'inline-block' }}
-                        >
-                          <option value="">Select Department</option>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
                           {departmentList.map(d => (
-                            <option key={d.id} value={d.name}>{d.name}</option>
+                            <label key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 6, background: selectedDepartment === d.name ? '#fff0f7' : '#f8f9fa', border: selectedDepartment === d.name ? '1px solid #B24592' : '1px solid transparent', borderRadius: 6, padding: '6px 12px', cursor: 'pointer' }}>
+                              <input type="radio" name="department" checked={selectedDepartment === d.name} onChange={() => setSelectedDepartment(d.name)} style={{ accentColor: '#B24592', width: 16, height: 16 }} />
+                              {d.name}
+                            </label>
                           ))}
-                        </select>
-                      </label>
+                        </div>
+                      </div>
                     )}
                     {recipientType === 'group' && (
-                      <label style={{ display: 'block', marginBottom: '1rem' }}>
+                      <div style={{ marginBottom: '1rem' }}>
                         <span style={{ fontWeight: 600, color: '#444', marginRight: 12 }}>Choose Group:</span>
-                        <select
-                          value={selectedGroup}
-                          onChange={e => setSelectedGroup(e.target.value)}
-                          style={{ ...inputStyle, width: 200, display: 'inline-block' }}
-                        >
-                          <option value="">Select Group</option>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
                           {groupList.map(g => (
-                            <option key={g.id} value={g.name}>{g.name}</option>
+                            <label key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 6, background: selectedGroup === g.name ? '#fff0f7' : '#f8f9fa', border: selectedGroup === g.name ? '1px solid #B24592' : '1px solid transparent', borderRadius: 6, padding: '6px 12px', cursor: 'pointer' }}>
+                              <input type="radio" name="group" checked={selectedGroup === g.name} onChange={() => setSelectedGroup(g.name)} style={{ accentColor: '#B24592', width: 16, height: 16 }} />
+                              {g.name}
+                            </label>
                           ))}
-                        </select>
-                      </label>
+                        </div>
+                      </div>
                     )}
                     {recipientType === 'individual' && (
-                      <label style={{ display: 'block', marginBottom: '1rem' }}>
+                      <div style={{ marginBottom: '1rem' }}>
                         <span style={{ fontWeight: 600, color: '#444', marginRight: 12 }}>Choose Staff:</span>
-                        <select
-                          multiple
-                          value={selectedStaff}
-                          onChange={e => {
-                            const options = Array.from(e.target.selectedOptions, option => option.value);
-                            setSelectedStaff(options);
-                          }}
-                          style={{ ...inputStyle, width: 300, display: 'inline-block', height: 120 }}
-                        >
+                        <div style={{ maxHeight: 180, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '8px', marginTop: 8 }}>
                           {staffList.map(staff => (
-                            <option key={staff.id} value={staff.email}>{staff.name} ({staff.email})</option>
+                            <label key={staff.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px', borderRadius: '6px', background: selectedStaff.includes(staff.email) ? '#fff0f7' : '#f8f9fa', border: selectedStaff.includes(staff.email) ? '1px solid #B24592' : '1px solid transparent', cursor: 'pointer', transition: 'all 0.2s' }}>
+                              <input type="checkbox" checked={selectedStaff.includes(staff.email)} onChange={e => { if (e.target.checked) { setSelectedStaff([...selectedStaff, staff.email]); } else { setSelectedStaff(selectedStaff.filter(email => email !== staff.email)); } }} style={{ accentColor: '#B24592', width: 16, height: 16, cursor: 'pointer' }} />
+                              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <span style={{ color: '#333', fontSize: '0.95rem', fontWeight: 500 }}>{staff.name}</span>
+                                <span style={{ color: '#888', fontSize: '0.8rem' }}>{staff.email}</span>
+                              </div>
+                            </label>
                           ))}
-                        </select>
-                      </label>
+                          {staffList.length === 0 && <div style={{ color: '#888', fontStyle: 'italic', padding: 8, gridColumn: '1/-1' }}>No staff found.</div>}
+                        </div>
+                      </div>
                     )}
                     <button
                       type="submit"
@@ -1941,7 +2177,7 @@ const AdminDashboard = () => {
                       }
                       return matchesSearch && matchesDate;
                     }).map(poll => (
-                      <div key={"poll-" + poll.id} className="list-item-hover" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', borderBottom: '1px solid #eee', cursor: 'pointer', borderRadius: '10px', marginBottom: '1rem', borderLeft: '5px solid #B24592' }} onClick={() => { setSelectedAnalyticsItem(poll); setActiveSection('poll-details'); }}>
+                      <div key={poll._id || poll.id} className="list-item-hover" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', borderBottom: '1px solid #eee', cursor: 'pointer', borderRadius: '10px', marginBottom: '1rem', borderLeft: '5px solid #B24592' }} onClick={() => { setSelectedAnalyticsItem(poll); setActiveSection('poll-details'); }}>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontWeight: 'bold', fontSize: '1.1rem', color: '#333' }}>{poll.question}</div>
                           <div style={{ fontSize: '0.9rem', color: '#888', marginTop: '4px' }}>Created {poll.created} • {poll.votes} votes</div>
@@ -2080,6 +2316,55 @@ const AdminDashboard = () => {
 
           {activeSection === 'survey-details' && displayedSurvey && (
             <section style={{ animation: 'fadeIn 0.5s ease' }}>
+              {/* Back Button */}
+              <button
+                onClick={() => setActiveSection('view-surveys')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  background: 'none',
+                  border: 'none',
+                  color: '#B24592',
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  marginBottom: '1.5rem',
+                  padding: '0.5rem 0',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.color = '#F7941E';
+                  e.target.style.transform = 'translateX(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.color = '#B24592';
+                  e.target.style.transform = 'translateX(0)';
+                }}
+              >
+                <svg 
+                  width="20" 
+                  height="20" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="2"
+                >
+                  <path d="M19 12H5"/>
+                  <path d="M12 19l-7-7 7-7"/>
+                </svg>
+                Back to All Surveys
+              </button>
+
+              <h2 style={{ 
+                color: '#2c3e50', 
+                marginBottom: '1.5rem',
+                fontSize: '1.8rem',
+                fontWeight: 700
+              }}>
+                Survey Statistics: {displayedSurvey.title}
+              </h2>
+
               {displayedSurvey.dailyResponses && displayedSurvey.dailyResponses.length > 0 && (
                 <LineChart data={displayedSurvey.dailyResponses} color="#B24592" />
               )}
@@ -2248,63 +2533,249 @@ const AdminDashboard = () => {
           )}
 
           {activeSection === 'profile' && (
-            <section style={{ animation: 'fadeIn 0.5s ease', maxWidth: '800px', margin: '0 auto' }}>
-              <h2 style={{ color: '#2c3e50', marginBottom: '1.5rem' }}>Admin Profile</h2>
-              <form style={{ ...cardStyle, textAlign: 'center' }} onSubmit={handleProfileSubmit}>
-                <div style={{ position: 'relative', display: 'inline-block', marginBottom: '2rem' }}>
-                  <img
-                    src={adminProfile.photo}
-                    alt="Profile"
-                    style={{ width: '180px', height: '180px', borderRadius: '50%', objectFit: 'cover', border: '5px solid #B24592', boxShadow: '0 4px 16px rgba(0,0,0,0.12)' }}
-                  />
-                  <label htmlFor="pfp-upload" style={{
-                    position: 'absolute', bottom: '10px', right: '10px', background: '#B24592', color: 'white',
-                    borderRadius: '50%', width: '44px', height: '44px', display: 'flex', alignItems: 'center',
-                    justifyContent: 'center', cursor: 'pointer', border: '3px solid white', boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
-                  }}>
-                    <span style={{ fontSize: '1.5rem', marginTop: '-2px', fontWeight: 'bold' }}>+</span>
-                  </label>
-                  <input id="pfp-upload" type="file" accept="image/*" onChange={handlePhotoChange} style={{ display: 'none' }} />
-                </div>
+            <section className="fade-in profile-section" aria-label="Admin Profile Section">
+              <div className="profile-desktop-layout">
+                {/* Admin Profile Info Card */}
+                <Card className="profile-info-card">
+                  <CardContent>
+                    <div className="profile-info-content">
+                      <div className="profile-avatar-section">
+                        <div className="profile-avatar-container">
+                          <img 
+                            src={adminProfile.photo || process.env.PUBLIC_URL + '/vp-pic.png'} 
+                            alt="Admin Profile" 
+                            className="profile-avatar" 
+                          />
+                          <button
+                            type="button"
+                            className="profile-avatar-edit-btn"
+                            onClick={() => document.getElementById('admin-photo-upload').click()}
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+                          </button>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            style={{ display: 'none' }}
+                            id="admin-photo-upload"
+                            onChange={handlePhotoChange}
+                          />
+                        </div>
+                        <div className="profile-user-info">
+                          <h3 className="profile-user-name">{adminProfile.name || 'Admin User'}</h3>
+                          <p className="profile-user-email">{adminProfile.email || 'admin@virtual.com'}</p>
+                          <p className="profile-user-department">{adminProfile.role || 'Administrator'}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="profile-stats">
+                        <div className="profile-stat-item">
+                          <div className="profile-stat-number">{activePollsList.length}</div>
+                          <div className="profile-stat-label">Active Polls</div>
+                        </div>
+                        <div className="profile-stat-item">
+                          <div className="profile-stat-number">{surveyList.length}</div>
+                          <div className="profile-stat-label">Total Surveys</div>
+                        </div>
+                        <div className="profile-stat-item">
+                          <div className="profile-stat-number">{staffList.length}</div>
+                          <div className="profile-stat-label">Staff Members</div>
+                        </div>
+                      </div>
+                      
+                      <div className="profile-member-info">
+                        <div className="profile-member-item">
+                          <span className="profile-member-label">Admin Since</span>
+                          <span className="profile-member-value">
+                            {new Date().toLocaleDateString('en-US', { 
+                              month: 'long', 
+                              year: 'numeric' 
+                            })}
+                          </span>
+                        </div>
+                        <div className="profile-member-item">
+                          <span className="profile-member-label">Last Active</span>
+                          <span className="profile-member-value">Today</span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
-                <div style={{ textAlign: 'left', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                  <label style={{ display: 'block' }}>
-                    <span style={{ fontWeight: 600, color: '#444', marginBottom: '0.5rem', display: 'block' }}>Full Name</span>
-                    <input type="text" name="name" value={adminProfile.name} onChange={handleProfileChange} style={inputStyle} />
-                  </label>
-                  <label style={{ display: 'block' }}>
-                    <span style={{ fontWeight: 600, color: '#444', marginBottom: '0.5rem', display: 'block' }}>Email Address</span>
-                    <input type="email" name="email" value={adminProfile.email} readOnly disabled style={{ ...inputStyle, background: '#f5f5f5', color: '#888' }} />
-                  </label>
-                  <label style={{ display: 'block' }}>
-                    <span style={{ fontWeight: 600, color: '#444', marginBottom: '0.5rem', display: 'block' }}>Role</span>
-                    <input type="text" name="role" value={adminProfile.role} readOnly disabled style={{ ...inputStyle, background: '#f5f5f5', color: '#888' }} />
-                  </label>
-                  <label style={{ display: 'block' }}>
-                    <span style={{ fontWeight: 600, color: '#444', marginBottom: '0.5rem', display: 'block' }}>Phone Number</span>
-                    <input type="tel" name="phone" value={adminProfile.phone} onChange={handleProfileChange} placeholder="+1 234 567 890" style={inputStyle} />
-                  </label>
-                </div>
+                {/* Admin Profile Edit Form */}
+                <Card className="profile-edit-form">
+                  <CardHeader>
+                    <CardTitle>Admin Profile Settings</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <form onSubmit={handleProfileSubmit}>
+                      <div className="profile-form-grid">
+                        <div className="profile-form-section">
+                          <h4 className="profile-section-title">Personal Information</h4>
+                          
+                          <div className="profile-form-row">
+                            <div className="profile-form-group">
+                              <label className="profile-form-label">Full Name</label>
+                              <div className="profile-input-container">
+                                <input 
+                                  type="text" 
+                                  name="name"
+                                  value={adminProfile.name || ''} 
+                                  onChange={handleProfileChange}
+                                  className="profile-form-input"
+                                  placeholder="Enter your full name"
+                                />
+                                <div className="profile-input-icon">
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                    <circle cx="12" cy="7" r="4"/>
+                                  </svg>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="profile-form-group">
+                              <label className="profile-form-label">Username</label>
+                              <div className="profile-input-container">
+                                <input 
+                                  type="text" 
+                                  value={(adminProfile.name || 'admin').toLowerCase().replace(/\s+/g, '')} 
+                                  className="profile-form-input"
+                                  placeholder="Username"
+                                  disabled
+                                />
+                                <div className="profile-input-icon">
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path d="M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM12 14a7 7 0 0 0-7 7h14a7 7 0 0 0-7-7z"/>
+                                  </svg>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
 
-                <button type="submit" style={{
-                  background: 'linear-gradient(90deg, #F7941E 0%, #B24592 100%)',
-                  color: 'white',
-                  padding: '14px 40px',
-                  border: 'none',
-                  borderRadius: '30px',
-                  cursor: 'pointer',
-                  fontSize: '1.1rem',
-                  fontWeight: 600,
-                  marginTop: '2rem',
-                  boxShadow: '0 4px 15px rgba(178, 69, 146, 0.3)',
-                  transition: 'transform 0.2s'
-                }}>
-                  Save Changes
-                </button>
-              </form>
+                          <div className="profile-form-row">
+                            <div className="profile-form-group">
+                              <label className="profile-form-label">Email Address</label>
+                              <div className="profile-input-container">
+                                <input 
+                                  type="email" 
+                                  name="email"
+                                  value={adminProfile.email || ''} 
+                                  onChange={handleProfileChange}
+                                  className="profile-form-input"
+                                  placeholder="admin@company.com"
+                                  disabled
+                                />
+                                <div className="profile-input-icon">
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                                    <polyline points="22,6 12,13 2,6"/>
+                                  </svg>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="profile-form-group">
+                              <label className="profile-form-label">Role</label>
+                              <div className="profile-input-container">
+                                <input 
+                                  type="text" 
+                                  name="role"
+                                  value={adminProfile.role || ''} 
+                                  className="profile-form-input"
+                                  placeholder="Administrator"
+                                  disabled
+                                />
+                                <div className="profile-input-icon">
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                                  </svg>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="profile-form-section">
+                          <h4 className="profile-section-title">Security</h4>
+                          
+                          <div className="profile-form-row">
+                            <div className="profile-form-group">
+                              <label className="profile-form-label">Current Password</label>
+                              <div className="profile-input-container">
+                                <input 
+                                  type="password" 
+                                  className="profile-form-input"
+                                  placeholder="Enter current password"
+                                />
+                                <div className="profile-input-icon">
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                    <circle cx="12" cy="16" r="1"/>
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                  </svg>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="profile-form-group">
+                              <label className="profile-form-label">New Password</label>
+                              <div className="profile-input-container">
+                                <input 
+                                  type="password" 
+                                  className="profile-form-input"
+                                  placeholder="Enter new password"
+                                />
+                                <div className="profile-input-icon">
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                    <circle cx="12" cy="16" r="1"/>
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                  </svg>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="profile-form-actions">
+                          <button type="button" className="profile-cancel-btn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                              <line x1="18" y1="6" x2="6" y2="18"/>
+                              <line x1="6" y1="6" x2="18" y2="18"/>
+                            </svg>
+                            Cancel
+                          </button>
+                          <button type="submit" className="profile-save-btn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                              <polyline points="17,21 17,13 7,13 7,21"/>
+                              <polyline points="7,3 7,8 15,8"/>
+                            </svg>
+                            Save Changes
+                          </button>
+                        </div>
+                      </div>
+                    </form>
+                  </CardContent>
+                </Card>
+              </div>
             </section>
           )}
           {renderPollDetailsSection()}
+          
+          {/* Toast Notification */}
+          {toast.show && (
+            <div className="toast-notification">
+              <span>{toast.message}</span>
+              {toast.action && (
+                <button className="toast-undo-btn" onClick={toast.action}>UNDO</button>
+              )}
+            </div>
+          )}
         </main>
       </div>
     </div>

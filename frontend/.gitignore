@@ -2,6 +2,12 @@
 
 # dependencies
 /node_modules
+
+# Local environment variables
+.env
+
+# Firebase config
+src/firebase.js
 /.pnp
 .pnp.js
 

@@ -3,15 +3,45 @@ import { auth } from './firebase';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import './StaffDashboard.css';
+import Sidebar from './Sidebar';
+import Header from './Header';
 import ReplyModal from './ReplyModal';
 import SuccessToast from './SuccessToast';
+import { Card, CardHeader, CardTitle, CardContent } from './components/ui/card';
 
- const StaffDashboard = () => {
+const StaffDashboard = () => {
+  // Survey form state for local draft and active survey
+  const [activeSurveyId, setActiveSurveyId] = useState(null);
+  const [drafts, setDrafts] = useState({}); // { [surveyId]: { q1, q2, ... } }
+
+  // Save draft locally (in-memory, can be extended to localStorage)
+  const handleSaveDraft = (surveyId) => {
+    setToastMessage('Draft saved locally!');
+    setShowSuccessToast(true);
+    // Optionally persist to localStorage here
+  };
+
+  // Complete survey: mark as completed, clear active, and show toast
+  const handleCompleteSurvey = (surveyId) => {
+    setSurveys(surveys => surveys.map(s => s.id === surveyId ? { ...s, status: 'Completed' } : s));
+    setActiveSurveyId(null);
+    setToastMessage('Survey submitted!');
+    setShowSuccessToast(true);
+    // Optionally send to backend here
+  };
   const navigate = useNavigate();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeSection, setActiveSection] = useState('overview');
   const [historyTab, setHistoryTab] = useState('surveys');
+  const [historySearchTerm, setHistorySearchTerm] = useState('');
+  const [historyDateFrom, setHistoryDateFrom] = useState('');
+  const [historyDateTo, setHistoryDateTo] = useState('');
+  const [historyTypeFilter, setHistoryTypeFilter] = useState('all'); // 'all', 'surveys', 'polls'
+  const [activityFilter, setActivityFilter] = useState('all'); // 'all', 'surveys', 'polls'
+  const [surveyFilter, setSurveyFilter] = useState('all'); // 'all', 'pending', 'started', 'high', 'medium', 'low'
+  const [surveySearchTerm, setSurveySearchTerm] = useState('');
   const [staffName, setStaffName] = useState('');
   const [profilePhoto, setProfilePhoto] = useState(null);
   const [user, setUser] = useState(null);
@@ -45,50 +75,137 @@ import SuccessToast from './SuccessToast';
   }
   const gotoStaffDashboard = () => { navigate ('/dashboard')}
 
-  
-  const [surveys, setSurveys] = useState([
+  const toggleSidebar = () => {
+    if (window.innerWidth < 768) {
+      setShowMobileMenu(!showMobileMenu);
+    } else {
+      setSidebarCollapsed(!sidebarCollapsed);
+    }
+  };
+
+  // Handle mobile sidebar overlay
+  const handleMobileOverlayClick = () => {
+    setShowMobileMenu(false);
+  };
+
+  // Activity timeline data
+  const activityItems = [
     {
       id: 1,
-      title: "Q1 Employee Satisfaction",
-      description: "Help us improve by sharing your thoughts on your work experience this quarter.",
-      category: "HR",
-      due: "2 days left",
-      time: "5 mins",
-      status: "Pending",
-      urgency: "high",
-      from: "HR Department",
-      required: true
+      type: 'survey',
+      title: 'Q1 Employee Satisfaction Survey',
+      description: 'New survey available - Help us improve your work experience',
+      time: '2 hours ago',
+      action: () => setActiveSection('surveys'),
+      actionLabel: 'Take Survey'
     },
     {
       id: 2,
-      title: "New IT Security Policy",
-      description: "Review and acknowledge the updated IT security guidelines for all staff.",
-      category: "IT",
-      due: "Required",
-      time: "10 mins",
-      status: "Pending",
-      urgency: "medium",
-      from: "IT Department",
-      required: true
+      type: 'poll',
+      title: 'Office Layout Preferences',
+      description: 'Quick poll - Share your workspace preferences',
+      time: '1 day ago',
+      action: () => setActiveSection('polls'),
+      actionLabel: 'Vote Now'
     },
     {
       id: 3,
-      title: "Remote Work Check-in",
-      description: "Let us know how remote work is going for you and any challenges faced.",
-      category: "Ops",
-      due: "Completed",
-      time: "2 mins",
-      status: "Completed",
-      urgency: "low",
-      from: "Operations",
-      required: false
+      type: 'survey',
+      title: 'Remote Work Check-in',
+      description: 'Completed - Thank you for your feedback!',
+      time: '3 days ago',
+      completed: true
+    },
+    {
+      id: 4,
+      type: 'poll',
+      title: 'Team Building Activity Preferences',
+      description: 'Help us plan the next team event',
+      time: '5 days ago',
+      action: () => setActiveSection('polls'),
+      actionLabel: 'Vote Now'
+    },
+    {
+      id: 5,
+      type: 'survey',
+      title: 'IT Security Training Feedback',
+      description: 'Share your thoughts on the recent training session',
+      time: '1 week ago',
+      completed: true
     }
-  ]);
+  ];
 
-  const [polls, setPolls] = useState([
-    { id: 1, question: "Holiday Party Preferences", options: ["Bowling", "Karaoke", "Hiking"], voted: null, from: "HR Department", anonymous: true, totalVotes: 42 },
-    { id: 2, question: "New Office Layout", options: ["Open Plan", "Cubicles", "Hybrid"], voted: null, from: "Admin", anonymous: false, totalVotes: 18 }
-  ]);
+  // Filter activity items based on selected filter
+  const getFilteredActivityItems = () => {
+    if (activityFilter === 'all') {
+      return activityItems;
+    }
+    return activityItems.filter(item => 
+      activityFilter === 'surveys' ? item.type === 'survey' : item.type === 'poll'
+    );
+  };
+
+  // Filter surveys based on selected filters and search term
+  const getFilteredSurveys = () => {
+    let filtered = surveys.filter(s => ['Pending', 'Started'].includes(s.status));
+    
+    // Apply status/urgency filter
+    if (surveyFilter !== 'all') {
+      if (['pending', 'started'].includes(surveyFilter)) {
+        filtered = filtered.filter(s => s.status.toLowerCase() === surveyFilter);
+      } else if (['high', 'medium', 'low'].includes(surveyFilter)) {
+        filtered = filtered.filter(s => s.urgency === surveyFilter);
+      }
+    }
+    
+    // Apply search filter
+    if (surveySearchTerm) {
+      filtered = filtered.filter(s => 
+        s.title.toLowerCase().includes(surveySearchTerm.toLowerCase()) ||
+        s.description.toLowerCase().includes(surveySearchTerm.toLowerCase()) ||
+        s.category.toLowerCase().includes(surveySearchTerm.toLowerCase())
+      );
+    }
+    
+    return filtered;
+  };
+
+  
+  const [surveys, setSurveys] = useState([]);
+
+  // Fetch surveys from backend for this user
+  useEffect(() => {
+    const fetchSurveys = async () => {
+      try {
+        // Use the same auth token logic as user profile fetch
+        const currentUser = auth.currentUser;
+        if (!currentUser) return;
+        const token = await currentUser.getIdToken();
+        const { data } = await axios.get('http://localhost:5000/api/survey/my', {
+          headers: { 'x-auth-token': token }
+        });
+        setSurveys(data || []);
+      } catch (err) {
+        setSurveys([]);
+      }
+    };
+    fetchSurveys();
+  }, []);
+
+  const [polls, setPolls] = useState([]);
+
+  // Fetch polls sent to this user from backend
+  useEffect(() => {
+    axios.get('/api/survey/received-polls')
+      .then(res => {
+        setPolls(res.data.polls || []);
+        setIsLoading(false);
+      })
+      .catch(err => {
+        setError('Failed to fetch polls');
+        setIsLoading(false);
+      });
+  }, []);
   // Track local selection for each poll
   const [pollSelections, setPollSelections] = useState({});
   // Confirmation dialog state
@@ -97,8 +214,6 @@ import SuccessToast from './SuccessToast';
 
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
-  const [notifications, setNotifications] = useState([]);
-  const [showNotifications, setShowNotifications] = useState(false);
   const [processingAction, setProcessingAction] = useState(null);
   const [expandedComments, setExpandedComments] = useState({});
   const [commentInputs, setCommentInputs] = useState({});
@@ -119,7 +234,6 @@ import SuccessToast from './SuccessToast';
       };
       setPolls(prev => [newPoll, ...prev]);
       setIsLoading(false);
-      addNotification("New poll arrived: Friday Theme Idea?");
     }, 15000);
     return () => clearTimeout(timer);
   }, []);
@@ -142,21 +256,70 @@ import SuccessToast from './SuccessToast';
     const option = pollSelections[pollId];
     if (option) {
       setConfirmVote({ open: true, pollId, option });
-    } else {
-      addNotification("Please select an option before submitting.");
     }
-  };
-
-  const addNotification = (message) => {
-    const newNotif = { id: Date.now(), message, time: new Date().toLocaleTimeString() };
-    setNotifications(prev => [newNotif, ...prev]);
-    setToastMessage(message);
-    setShowSuccessToast(true);
   };
 
   const handleShare = (question) => {
     navigator.clipboard.writeText(`Vote on: "${question}" - Shared from VirtualPay`);
-    addNotification("Poll link copied to clipboard!");
+    setToastMessage("Poll link copied to clipboard!");
+    setShowSuccessToast(true);
+  };
+
+  // Filter and search history items
+  const getFilteredHistoryItems = () => {
+    let allItems = [];
+    
+    // Add completed surveys
+    const completedSurveys = surveys.filter(s => s.status === 'Completed').map(survey => ({
+      ...survey,
+      type: 'survey',
+      completedDate: '2024-01-15', // Mock date
+      description: survey.description || 'Survey completed successfully'
+    }));
+    
+    // Add poll history
+    const pollHistoryItems = pollHistory.map(poll => ({
+      ...poll,
+      type: 'poll',
+      completedDate: '2024-01-10', // Mock date
+      title: poll.question,
+      description: `You voted for: ${poll.voted}`
+    }));
+    
+    allItems = [...completedSurveys, ...pollHistoryItems];
+    
+    // Apply type filter
+    if (historyTypeFilter !== 'all') {
+      allItems = allItems.filter(item => 
+        historyTypeFilter === 'surveys' ? item.type === 'survey' : item.type === 'poll'
+      );
+    }
+    
+    // Apply search filter
+    if (historySearchTerm) {
+      allItems = allItems.filter(item =>
+        item.title.toLowerCase().includes(historySearchTerm.toLowerCase()) ||
+        (item.description && item.description.toLowerCase().includes(historySearchTerm.toLowerCase()))
+      );
+    }
+    
+    // Apply date filters
+    if (historyDateFrom) {
+      allItems = allItems.filter(item => item.completedDate >= historyDateFrom);
+    }
+    if (historyDateTo) {
+      allItems = allItems.filter(item => item.completedDate <= historyDateTo);
+    }
+    
+    // Sort by completion date (newest first)
+    return allItems.sort((a, b) => new Date(b.completedDate) - new Date(a.completedDate));
+  };
+
+  const clearHistoryFilters = () => {
+    setHistorySearchTerm('');
+    setHistoryDateFrom('');
+    setHistoryDateTo('');
+    setHistoryTypeFilter('all');
   };
 
   // When user confirms vote
@@ -199,7 +362,8 @@ import SuccessToast from './SuccessToast';
           // Remove poll from active list after voting
           return updatedPolls.filter(p => p.id !== pollId);
         });
-        addNotification("Vote recorded! Thanks for participating.");
+        setToastMessage("Vote recorded! Thanks for participating.");
+        setShowSuccessToast(true);
         setConfirmVote({ open: false, pollId: null, option: null });
         setPollSelections(prev => {
           const copy = { ...prev };
@@ -221,7 +385,8 @@ import SuccessToast from './SuccessToast';
     setError(null);
     setTimeout(() => {
       setSurveys(surveys => surveys.map(s => s.title === title ? { ...s, status: 'Started' } : s));
-      addNotification(`Started survey: ${title}`);
+      setToastMessage(`Started survey: ${title}`);
+      setShowSuccessToast(true);
       setProcessingAction(null);
     }, 1000);
   };
@@ -235,21 +400,11 @@ import SuccessToast from './SuccessToast';
       return p;
     }));
     setCommentInputs(prev => ({ ...prev, [pollId]: "" }));
-    addNotification("Comment posted successfully");
+    setToastMessage("Comment posted successfully");
+    setShowSuccessToast(true);
   };
 
-  // Styles to match Admin "Cute" look
-  const cardStyle = {
-    background: 'white',
-    borderRadius: '16px',
-    padding: '1.5rem',
-    boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
-    border: '1px solid rgba(0,0,0,0.04)',
-    marginBottom: '1.5rem',
-    transition: 'transform 0.2s ease',
-  };
-
-  // Notification/message counts
+  // Survey and poll counts for badges
   const pendingSurveyCount = surveys.filter(s => s.status === 'Pending').length;
   const activePollCount = polls.length;
 
@@ -274,334 +429,617 @@ import SuccessToast from './SuccessToast';
     </div>
   );
 
-  const SkeletonCard = () => (
-    <div className="dashboard-card skeleton-card" aria-hidden="true">
-      <div className="skeleton-line title"></div>
-      <div className="skeleton-line text"></div>
-      <div className="skeleton-line text short"></div>
-    </div>
-  );
-
-  const getNavItemStyle = (section) => ({
-    padding: '12px 20px',
-    cursor: 'pointer',
-    backgroundColor: activeSection === section ? '#fff0f7' : 'transparent',
-    color: activeSection === section ? '#B24592' : '#fff',
-    fontWeight: activeSection === section ? '700' : '500',
-    fontSize: '1.05rem',
-    borderLeft: activeSection === section ? '4px solid #B24592' : '4px solid transparent',
-    transition: 'all 0.2s ease',
-    listStyle: 'none'
-  });
-
   return (
     <div className="staff-dashboard">
-      <aside className="sidebar-nav" style={{ background: 'linear-gradient(135deg, #7D1F4B 0%, #B24592 100%)' }}>
-        <div className="sidebar-logo">
-          <img src={process.env.PUBLIC_URL + '/vp-pic.png'} onClick={gotoStaffDashboard} alt="Virtual Pay Logo" className="dashboard-logo" />
-        </div>
-        <nav className="sidebar-nav-menu">
-          <ul className="sidebar-nav-list" style={{ padding: 0 }}>
-            <li tabIndex="0" role="button" style={getNavItemStyle('overview')} onKeyDown={(e) => e.key === 'Enter' && setActiveSection('overview')} className={`sidebar-nav-item overview`} onClick={() => setActiveSection('overview')}>Overview</li>
-            <li tabIndex="0" role="button" style={getNavItemStyle('surveys')} onKeyDown={(e) => e.key === 'Enter' && setActiveSection('surveys')} className={`sidebar-nav-item surveys`} onClick={() => setActiveSection('surveys')}>My Surveys</li>
-            <li tabIndex="0" role="button" style={getNavItemStyle('polls')} onKeyDown={(e) => e.key === 'Enter' && setActiveSection('polls')} className={`sidebar-nav-item polls`} onClick={() => setActiveSection('polls')}>Active Polls</li>
-            <li tabIndex="0" role="button" style={getNavItemStyle('history')} onKeyDown={(e) => e.key === 'Enter' && setActiveSection('history')} className={`sidebar-nav-item history`} onClick={() => setActiveSection('history')}>History</li>
-            <li tabIndex="0" role="button" style={getNavItemStyle('profile')} onKeyDown={(e) => e.key === 'Enter' && gotoProfile()} className={`sidebar-nav-item profile`} onClick={gotoProfile}>Profile</li>
-            <li tabIndex="0" role="button" style={{...getNavItemStyle('logout'), color: '#fde2e2'}} onKeyDown={(e) => e.key === 'Enter' && navigate('/')} className="sidebar-nav-item logout" onClick={() => navigate('/')}>Log Out</li>
-          </ul>
-        </nav>
-      </aside>
-      
-      <button className="hamburger-menu" aria-label="Open navigation" onClick={() => setShowMobileMenu(v => !v)}>
-        <span className="bar"></span>
-        <span className="bar"></span>
-        <span className="bar"></span>
-      </button>
-      
+      {/* Mobile Overlay */}
       {showMobileMenu && (
-        <div className="mobile-sidebar-dropdown">
-          <div className="sidebar-logo">
-            <img src={process.env.PUBLIC_URL + '/vp-pic.png'} alt="Virtual Pay Logo" className="dashboard-logo" />
-          </div>
-          <nav>
-            <ul>
-              <li tabIndex="0" role="button" onClick={() => { setActiveSection('overview'); setShowMobileMenu(false); }}>Overview</li>
-              <li tabIndex="0" role="button" onClick={() => { setActiveSection('surveys'); setShowMobileMenu(false); }}>My Surveys</li>
-              <li tabIndex="0" role="button" onClick={() => { setActiveSection('polls'); setShowMobileMenu(false); }}>Active Polls</li>
-              <li tabIndex="0" role="button" onClick={() => { gotoProfile(); setShowMobileMenu(false); }}>Profile</li>
-              <li tabIndex="0" role="button" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>Log Out</li>
-            </ul>
-          </nav>
-        </div>
+        <div 
+          className="mobile-overlay"
+          onClick={handleMobileOverlayClick}
+        />
       )}
-          
-      <main className="dashboard-content with-sidebar">
-        <div style={{ position: 'absolute', top: '20px', right: '20px', zIndex: 100 }}>
-          <button onClick={() => setShowNotifications(!showNotifications)} style={{ background: 'white', border: 'none', borderRadius: '50%', width: '40px', height: '40px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', cursor: 'pointer', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ fontSize: '1.2rem' }}>🔔</span>
-            {notifications.length > 0 && <span style={{ position: 'absolute', top: '-2px', right: '-2px', background: '#F7941E', color: 'white', borderRadius: '50%', width: '18px', height: '18px', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', border: '2px solid #f8f9fa' }}>{notifications.length}</span>}
-          </button>
-          {showNotifications && (
-            <div style={{ position: 'absolute', top: '50px', right: '0', width: '320px', background: 'white', borderRadius: '12px', boxShadow: '0 8px 30px rgba(0,0,0,0.12)', padding: '1rem', maxHeight: '400px', overflowY: 'auto', border: '1px solid #eee', animation: 'fadeIn 0.2s ease' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid #eee', paddingBottom: '0.5rem' }}>
-                <h4 style={{ margin: 0, color: '#2c3e50' }}>Notifications</h4>
-                <span style={{ fontSize: '0.8rem', color: '#B24592', cursor: 'pointer' }} onClick={() => setNotifications([])}>Clear all</span>
-              </div>
-              {notifications.length === 0 ? <p style={{ color: '#888', fontSize: '0.9rem', textAlign: 'center', padding: '1rem' }}>No new notifications</p> : (
-                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                  {notifications.map(n => (
-                    <li key={n.id} style={{ padding: '0.8rem', borderBottom: '1px solid #f5f5f5', fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '4px', borderRadius: '8px', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#f9f9f9'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                      <div style={{ color: '#333', fontWeight: 500 }}>{n.message}</div>
-                      <div style={{ color: '#aaa', fontSize: '0.75rem' }}>{n.time}</div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-        </div>
 
-        {activeSection === 'overview' && (
-          <section className="welcome-section fade-in" aria-label="Overview Section">
-            <div className="overview-hero-card">
-              <img src={profilePhoto || process.env.PUBLIC_URL + '/profile-photo.png'} alt="Profile" className="overview-hero-avatar" />
-              <div className="overview-hero-content">
-                <div className="overview-hero-title">Good Morning, {staffName}</div>
-                <div className="overview-hero-summary">You have <span className="highlight">{pendingSurveyCount + activePollCount} pending tasks</span> today.</div>
-                <div className="overview-hero-tasks">
-                  <div className="overview-hero-task" onClick={() => setActiveSection('surveys')} style={{cursor:'pointer'}}>
-                    <div className="overview-hero-task-label">Pending Surveys</div>
-                    <div className="overview-hero-task-value">{pendingSurveyCount}</div>
-                  </div>
-                  <div className="overview-hero-task" onClick={() => setActiveSection('polls')} style={{cursor:'pointer'}}>
-                    <div className="overview-hero-task-label">Active Polls</div>
-                    <div className="overview-hero-task-value polls">{activePollCount}</div>
-                  </div>
-                  <div className="overview-hero-task" onClick={() => setActiveSection('history')} style={{cursor:'pointer'}}>
-                    <div className="overview-hero-task-label">Completed Tasks</div>
-                    <div className="overview-hero-task-value completed">{surveys.filter(s => s.status === 'Completed').length + pollHistory.length}</div>
+      <Sidebar 
+        activeSection={activeSection}
+        setActiveSection={setActiveSection}
+        pendingSurveyCount={pendingSurveyCount}
+        activePollCount={activePollCount}
+        gotoProfile={gotoProfile}
+        navigate={navigate}
+        collapsed={sidebarCollapsed}
+        onToggle={toggleSidebar}
+        showMobileMenu={showMobileMenu}
+      />
+      
+      <div className={`dashboard-layout ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+        <Header 
+          staffName={staffName}
+          profilePhoto={profilePhoto}
+        />
+        
+        <button className="hamburger-menu" aria-label="Open navigation" onClick={toggleSidebar}>
+          <span className="bar"></span>
+          <span className="bar"></span>
+          <span className="bar"></span>
+        </button>
+        
+        {showMobileMenu && (
+          <div className="mobile-sidebar-dropdown">
+            <div className="sidebar-logo">
+              <img src={process.env.PUBLIC_URL + '/vp-pic.png'} alt="Virtual Pay Logo" className="dashboard-logo" />
+            </div>
+            <nav>
+              <ul>
+                <li tabIndex="0" role="button" onClick={() => { setActiveSection('overview'); setShowMobileMenu(false); }}>
+                  <span>Overview</span>
+                  {(pendingSurveyCount + activePollCount) > 0 && <span className="nav-badge">{pendingSurveyCount + activePollCount}</span>}
+                </li>
+                <li tabIndex="0" role="button" onClick={() => { setActiveSection('surveys'); setShowMobileMenu(false); }}>
+                  <span>My Surveys</span>
+                  {pendingSurveyCount > 0 && <span className="nav-badge">{pendingSurveyCount}</span>}
+                </li>
+                <li tabIndex="0" role="button" onClick={() => { setActiveSection('polls'); setShowMobileMenu(false); }}>
+                  <span>Active Polls</span>
+                  {activePollCount > 0 && <span className="nav-badge">{activePollCount}</span>}
+                </li>
+                <li tabIndex="0" role="button" onClick={() => { setActiveSection('history'); setShowMobileMenu(false); }}>
+                  <span>History</span>
+                </li>
+                <li tabIndex="0" role="button" onClick={() => { gotoProfile(); setShowMobileMenu(false); }}>
+                  <span>Profile</span>
+                </li>
+                <li tabIndex="0" role="button" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
+                  <span>Log Out</span>
+                </li>
+              </ul>
+            </nav>
+            
+            {/* Mobile User Profile Section */}
+            <div className="sidebar-footer">
+              <div className="sidebar-user-info" onClick={() => { gotoProfile(); setShowMobileMenu(false); }}>
+                <img 
+                  src={profilePhoto || process.env.PUBLIC_URL + '/vp-pic.png'} 
+                  alt="User Avatar" 
+                  className="sidebar-user-avatar" 
+                />
+                <div className="sidebar-user-details">
+                  <div className="sidebar-user-name">{staffName || 'User'}</div>
+                  <div className="sidebar-user-status">
+                    <div className="status-indicator">
+                      <div className="status-dot"></div>
+                      <span>Online</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
+          </div>
+        )}
+            
+        <main className="dashboard-content">
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
-              <div style={{ gridColumn: '1 / -1', marginTop: '2rem' }}>
-                <h3 style={{ marginBottom: '1rem', color: '#2c3e50', fontWeight: 800, fontSize: '1.4rem', display: 'flex', alignItems: 'center', gap: '10px' }}>Action Required</h3>
-              </div>
-              {(() => {
-                const pendingSurveys = surveys.filter(s => s.status === 'Pending');
-                
-                if (isLoading) {
-                  return (
-                    <>
-                      <SkeletonCard /><SkeletonCard />
-                    </>
-                  );
-                }
-
-                if (pendingSurveys.length === 0) {
-                  return (
-                    <EmptyState 
-                      title="You're All Caught Up!" 
-                      message="Great job! You've completed all your pending surveys and tasks. Enjoy your day!" 
-                      icon="🎉" 
-                    />
-                  );
-                }
-    
-                return pendingSurveys.map((survey) => (
-                    <div key={survey.id} className="action-required-card">
-                      <div className="survey-title">
-                        {survey.title}
-                        {survey.required && <span className="required-badge">Required</span>}
-                      </div>
-                      <div className="survey-description">{survey.description}</div>
-                      <div className="survey-meta">
-                        <span className="survey-deadline">Deadline: <span>{survey.due}</span></span>
-                      </div>
-                      <button 
-                        className="survey-start-btn" 
-                        onClick={() => handleStartSurvey(survey.title)}
-                        disabled={processingAction === `start-${survey.title}`}
-                        style={{ background: 'linear-gradient(90deg, #F7941E 0%, #B24592 100%)', color: 'white', border: 'none', padding: '8px 24px', borderRadius: '20px', cursor: 'pointer', fontWeight: '600', boxShadow: '0 2px 8px rgba(178, 69, 146, 0.2)' }}
-                      >
-                        {processingAction === `start-${survey.title}` ? 'Starting...' : 'Start'}
-                      </button>
-                    </div>
-                ));
-              })()}
-
-
+        {activeSection === 'overview' && (
+          <section className="welcome-section fade-in" aria-label="Overview Section">
+            {/* Interactive Stats Grid */}
+            <div className="stats-grid">
+              <Card className="stat-card" onClick={() => setActiveSection('surveys')}>
+                <CardContent>
+                  <div className="stat-number">{pendingSurveyCount}</div>
+                  <div className="stat-label">Pending Surveys</div>
+                  <div className="stat-description">Complete to help improve your workplace</div>
+                  <div className="stat-arrow">→</div>
+                </CardContent>
+              </Card>
+              
+              <Card className="stat-card" onClick={() => setActiveSection('polls')}>
+                <CardContent>
+                  <div className="stat-number">{activePollCount}</div>
+                  <div className="stat-label">Active Polls</div>
+                  <div className="stat-description">Your opinion matters - vote now</div>
+                  <div className="stat-arrow">→</div>
+                </CardContent>
+              </Card>
+              
+              <Card className="stat-card" onClick={() => setActiveSection('history')}>
+                <CardContent>
+                  <div className="stat-number">{surveys.filter(s => s.status === 'Completed').length + pollHistory.length}</div>
+                  <div className="stat-label">Completed</div>
+                  <div className="stat-description">Great job on your participation!</div>
+                  <div className="stat-arrow">→</div>
+                </CardContent>
+              </Card>
+              
+              <Card className="achievement-card stat-card">
+                <CardContent>
+                  <div className="stat-number">95%</div>
+                  <div className="stat-label">Participation Rate</div>
+                  <div className="stat-description">You're an active contributor!</div>
+                  <div className="achievement-sparkle">✨</div>
+                </CardContent>
+              </Card>
             </div>
+
+            {/* Recent Activity Table */}
+            <Card>
+              <CardHeader>
+                <div className="activity-header">
+                  <CardTitle>Recent Activity</CardTitle>
+                  <div className="activity-filter">
+                    <button 
+                      className={`filter-btn ${activityFilter === 'all' ? 'active' : ''}`}
+                      onClick={() => setActivityFilter('all')}
+                    >
+                      All
+                    </button>
+                    <button 
+                      className={`filter-btn ${activityFilter === 'surveys' ? 'active' : ''}`}
+                      onClick={() => setActivityFilter('surveys')}
+                    >
+                      Surveys
+                    </button>
+                    <button 
+                      className={`filter-btn ${activityFilter === 'polls' ? 'active' : ''}`}
+                      onClick={() => setActivityFilter('polls')}
+                    >
+                      Polls
+                    </button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {getFilteredActivityItems().length > 0 ? (
+                  <div className="activity-table-container">
+                    <table className="activity-table">
+                      <thead>
+                        <tr className="table-header-row">
+                          <th className="table-header">Activity</th>
+                          <th className="table-header">Type</th>
+                          <th className="table-header">Status</th>
+                          <th className="table-header">Time</th>
+                          <th className="table-header">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {getFilteredActivityItems().map((item) => (
+                          <tr key={item.id} className="table-row">
+                            <td className="table-cell">
+                              <div className="activity-info">
+                                <div className="activity-icon">
+                                  {item.type === 'survey' ? (
+                                    <svg className="activity-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                      <polyline points="14,2 14,8 20,8"/>
+                                      <line x1="16" y1="13" x2="8" y2="13"/>
+                                      <line x1="16" y1="17" x2="8" y2="17"/>
+                                    </svg>
+                                  ) : (
+                                    <svg className="activity-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                      <line x1="18" y1="20" x2="18" y2="10"/>
+                                      <line x1="12" y1="20" x2="12" y2="4"/>
+                                      <line x1="6" y1="20" x2="6" y2="14"/>
+                                    </svg>
+                                  )}
+                                </div>
+                                <div className="activity-details">
+                                  <div className="activity-title">{item.title}</div>
+                                  <div className="activity-description">{item.description}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="table-cell">
+                              <span className={`type-badge ${item.type}`}>
+                                {item.type === 'survey' ? 'Survey' : 'Poll'}
+                              </span>
+                            </td>
+                            <td className="table-cell">
+                              <span className={`status-badge ${item.completed ? 'completed' : 'pending'}`}>
+                                {item.completed ? (
+                                  <>
+                                    <svg className="status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                      <polyline points="20,6 9,17 4,12"/>
+                                    </svg>
+                                    Completed
+                                  </>
+                                ) : (
+                                  <>
+                                    <svg className="status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                      <circle cx="12" cy="12" r="10"/>
+                                      <polyline points="12,6 12,12 16,14"/>
+                                    </svg>
+                                    Pending
+                                  </>
+                                )}
+                              </span>
+                            </td>
+                            <td className="table-cell">
+                              <span className="activity-time">{item.time}</span>
+                            </td>
+                            <td className="table-cell">
+                              {item.action && !item.completed && (
+                                <button className="activity-action-btn" onClick={item.action}>
+                                  {item.actionLabel}
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="activity-empty-state">
+                    <div className="empty-state-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14,2 14,8 20,8"/>
+                        <line x1="16" y1="13" x2="8" y2="13"/>
+                        <line x1="16" y1="17" x2="8" y2="17"/>
+                      </svg>
+                    </div>
+                    <h4 className="empty-state-title">No Recent Activity</h4>
+                    <p className="empty-state-message">Your activity will appear here as you interact with surveys and polls.</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
           </section>
         )}
 
         {activeSection === 'surveys' && (
-          <section className="fade-in" aria-label="My Surveys Section">
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h2 style={{ color: '#2c3e50', margin: 0, fontWeight: 700 }}>My Surveys</h2>
-            </div>
-            
-            {(() => {
-              const filteredSurveys = surveys.filter(s => ['Pending', 'Started'].includes(s.status));
-              
-              if (filteredSurveys.length === 0) {
-                return (
-                  <EmptyState 
-                    title="No Pending Surveys" 
-                    message="You have no new surveys to complete at the moment. Check back later!" 
-                    icon="📝" 
-                  />
-                );
-              }
-
-              return (
-                <div style={{...cardStyle, padding: '1.5rem', border: '1px solid #F7941E', boxShadow: '0 4px 24px 0 rgba(247,148,30,0.18)'}}>
-                  {filteredSurveys.map(survey => (
-                    <div key={survey.id} className="survey-list-item">
-                      <div>
-                        <div style={{ fontWeight: 'bold', fontSize: '1.1rem', color: '#333' }}>
-                          {survey.title}
-                          {survey.required && <span style={{ marginLeft: '8px', fontSize: '0.7rem', background: '#FF4B4B', color: 'white', padding: '2px 8px', borderRadius: '10px', verticalAlign: 'middle', fontWeight: '600' }}>Required</span>}
-                        </div>
-                        <div style={{ fontSize: '0.9rem', color: '#888', marginTop: '4px' }}>
-                          {survey.category} • {survey.time} • <span style={{ color: '#F7941E', fontWeight: '600' }}>{survey.status}</span>
-                        </div>
-                      </div>
-                      {survey.status === 'Pending' && (
-                        <button 
-                          onClick={() => handleStartSurvey(survey.title)} 
-                          className="survey-action-btn start"
-                          disabled={processingAction === `start-${survey.title}`}
-                          style={{ background: 'linear-gradient(90deg, #F7941E 0%, #B24592 100%)', color: 'white', border: 'none', padding: '6px 16px', borderRadius: '20px', cursor: 'pointer', fontWeight: '600' }}
-                        >
-                          {processingAction === `start-${survey.title}` ? 'Starting...' : 'Start Survey'}
-                        </button>
-                      )}
-                      {survey.status === 'Started' && (
-                        <button className="survey-action-btn continue">Continue</button>
-                      )}
-                    </div>
-                  ))}
+          <section className="fade-in surveys-section" aria-label="My Surveys Section">
+            <Card>
+              <CardHeader>
+                <div className="activity-header">
+                  <CardTitle>My Surveys</CardTitle>
+                  <div className="activity-filter">
+                    <button 
+                      className={`filter-btn ${surveyFilter === 'all' ? 'active' : ''}`}
+                      onClick={() => setSurveyFilter('all')}
+                    >
+                      All
+                    </button>
+                    <button 
+                      className={`filter-btn ${surveyFilter === 'pending' ? 'active' : ''}`}
+                      onClick={() => setSurveyFilter('pending')}
+                    >
+                      Pending
+                    </button>
+                    <button 
+                      className={`filter-btn ${surveyFilter === 'started' ? 'active' : ''}`}
+                      onClick={() => setSurveyFilter('started')}
+                    >
+                      In Progress
+                    </button>
+                    <button 
+                      className={`filter-btn ${surveyFilter === 'high' ? 'active' : ''}`}
+                      onClick={() => setSurveyFilter('high')}
+                    >
+                      High Priority
+                    </button>
+                  </div>
                 </div>
-              );
-            })()}
+              </CardHeader>
+              <CardContent>
+                {(() => {
+                  const filteredSurveys = getFilteredSurveys();
+                  
+                  if (filteredSurveys.length === 0) {
+                    return (
+                      <div className="activity-empty-state">
+                        <div className="empty-state-icon">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14,2 14,8 20,8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                          </svg>
+                        </div>
+                        <h4 className="empty-state-title">
+                          {surveySearchTerm || surveyFilter !== 'all' 
+                            ? 'No Surveys Match Your Criteria' 
+                            : 'No Pending Surveys'
+                          }
+                        </h4>
+                        <p className="empty-state-message">
+                          {surveySearchTerm || surveyFilter !== 'all'
+                            ? 'Try adjusting your search terms or filters to find what you\'re looking for.'
+                            : 'You have no new surveys to complete at the moment. Check back later for new opportunities to share your feedback!'
+                          }
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="activity-table-container">
+                      <table className="activity-table">
+                        <thead>
+                          <tr className="table-header-row">
+                            <th className="table-header">Survey</th>
+                            <th className="table-header">Type</th>
+                            <th className="table-header">Status</th>
+                            <th className="table-header">Due Date</th>
+                            <th className="table-header">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredSurveys.map((survey) => (
+                            <React.Fragment key={survey.id}>
+                              <tr className="table-row">
+                                <td className="table-cell">
+                                  <div className="activity-info">
+                                    <div className="activity-icon">
+                                      <svg className="activity-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                        <polyline points="14,2 14,8 20,8"/>
+                                        <line x1="16" y1="13" x2="8" y2="13"/>
+                                        <line x1="16" y1="17" x2="8" y2="17"/>
+                                      </svg>
+                                    </div>
+                                    <div className="activity-details">
+                                      <div className="activity-title">{survey.title}</div>
+                                      <div className="activity-description">{survey.description}</div>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="table-cell">
+                                  <span className={`type-badge priority-${survey.urgency}`}>
+                                    {survey.category}
+                                    {survey.required && <span className="required-indicator">*</span>}
+                                  </span>
+                                </td>
+                                <td className="table-cell">
+                                  <span className={`status-badge ${survey.status.toLowerCase()}`}>
+                                    {survey.status === 'Pending' && (
+                                      <svg className="status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                        <circle cx="12" cy="12" r="10"/>
+                                        <polyline points="12,6 12,12 16,14"/>
+                                      </svg>
+                                    )}
+                                    {survey.status === 'Started' && (
+                                      <svg className="status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                        <circle cx="12" cy="12" r="10"/>
+                                        <path d="M12 6v6l4 2"/>
+                                      </svg>
+                                    )}
+                                    {survey.status === 'Completed' && (
+                                      <svg className="status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                        <polyline points="20,6 9,17 4,12"/>
+                                      </svg>
+                                    )}
+                                    {survey.status}
+                                    {survey.status === 'Started' && (
+                                      <span className="progress-text">({survey.progress}%)</span>
+                                    )}
+                                  </span>
+                                </td>
+                                <td className="table-cell">
+                                  <span className={`activity-time ${survey.due === 'Required' ? 'urgent' : ''}`}>
+                                    {survey.due}
+                                  </span>
+                                </td>
+                                <td className="table-cell">
+                                  {survey.status === 'Pending' && (
+                                    <button 
+                                      onClick={() => handleStartSurvey(survey.title)} 
+                                      className="activity-action-btn"
+                                      disabled={processingAction === `start-${survey.title}`}
+                                    >
+                                      {processingAction === `start-${survey.title}` ? 'Starting...' : 'Start'}
+                                    </button>
+                                  )}
+                                  {survey.status === 'Started' && (
+                                    <button className="activity-action-btn" onClick={() => setActiveSurveyId(survey.id)}>
+                                      Continue Survey
+                                    </button>
+                                  )}
+                                  {survey.status === 'Completed' && (
+                                    <button className="activity-action-btn secondary">
+                                      View
+                                    </button>
+                                  )}
+                                </td>
+                              </tr>
+                              {/* Survey Form Section for Started Survey */}
+                              {activeSurveyId === survey.id && survey.status === 'Started' && (
+                                <tr>
+                                  <td colSpan={5}>
+                                    <div className="survey-form-section" style={{ background: '#fff', borderRadius: 12, padding: 24, margin: '24px 0', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}>
+                                      <h3 style={{ marginBottom: 16, color: '#B24592' }}>{survey.title}</h3>
+                                      <form onSubmit={e => { e.preventDefault(); handleCompleteSurvey(survey.id); }}>
+                                        <div style={{ marginBottom: 18 }}>
+                                          <label style={{ fontWeight: 600 }}>How satisfied are you with your work environment?</label>
+                                          <select
+                                            value={drafts[survey.id]?.q1 || ''}
+                                            onChange={e => setDrafts(prev => ({ ...prev, [survey.id]: { ...prev[survey.id], q1: e.target.value } }))}
+                                            style={{ marginLeft: 12 }}
+                                          >
+                                            <option value="">Select</option>
+                                            <option value="Very Satisfied">Very Satisfied</option>
+                                            <option value="Satisfied">Satisfied</option>
+                                            <option value="Neutral">Neutral</option>
+                                            <option value="Dissatisfied">Dissatisfied</option>
+                                            <option value="Very Dissatisfied">Very Dissatisfied</option>
+                                          </select>
+                                        </div>
+                                        <div style={{ marginBottom: 18 }}>
+                                          <label style={{ fontWeight: 600 }}>Any suggestions for improvement?</label>
+                                          <input
+                                            type="text"
+                                            value={drafts[survey.id]?.q2 || ''}
+                                            onChange={e => setDrafts(prev => ({ ...prev, [survey.id]: { ...prev[survey.id], q2: e.target.value } }))}
+                                            style={{ marginLeft: 12, width: '60%' }}
+                                          />
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '1rem', marginTop: 24 }}>
+                                          <button type="button" className="activity-action-btn" style={{ background: '#B24592', color: '#fff' }} onClick={() => handleSaveDraft(survey.id)}>
+                                            Save Draft
+                                          </button>
+                                          <button type="submit" className="activity-action-btn" style={{ background: '#4BCB6B', color: '#fff' }}>
+                                            Complete Survey
+                                          </button>
+                                        </div>
+                                      </form>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })()}
+              </CardContent>
+            </Card>
           </section>
         )}
 
         {activeSection === 'history' && (
           <section className="fade-in" aria-label="History Section">
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1.5rem', justifyContent: 'space-between' }}>
-              <h2 style={{ color: '#2c3e50', margin: 0, fontWeight: 700 }}>History</h2>
-              <div style={{ display: 'flex', gap: '8px', background: '#fff', padding: '4px', borderRadius: '8px', border: '1px solid #eee' }}>
-                  <button onClick={() => setHistoryTab('surveys')} style={{ padding: '6px 12px', borderRadius: '6px', border: 'none', background: historyTab === 'surveys' ? '#B24592' : 'transparent', color: historyTab === 'surveys' ? '#fff' : '#555', cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s' }}>Surveys</button>
-                  <button onClick={() => setHistoryTab('polls')} style={{ padding: '6px 12px', borderRadius: '6px', border: 'none', background: historyTab === 'polls' ? '#B24592' : 'transparent', color: historyTab === 'polls' ? '#fff' : '#555', cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s' }}>Polls</button>
-              </div>
-            </div>
-
-            {historyTab === 'surveys' ? (
-                (() => {
-                    const completedSurveys = surveys.filter(s => s.status === 'Completed');
-                    if (completedSurveys.length === 0) {
-                        return (
-                          <EmptyState 
-                            title="No Completed Surveys" 
-                            message="You haven't completed any surveys yet." 
-                            icon="📂" 
-                          />
-                        );
-                    }
+            <Card>
+              <CardHeader>
+                <div className="activity-header">
+                  <CardTitle>History</CardTitle>
+                  <div className="activity-filter">
+                    <button 
+                      className={`filter-btn ${historyTypeFilter === 'all' ? 'active' : ''}`}
+                      onClick={() => setHistoryTypeFilter('all')}
+                    >
+                      All
+                    </button>
+                    <button 
+                      className={`filter-btn ${historyTypeFilter === 'surveys' ? 'active' : ''}`}
+                      onClick={() => setHistoryTypeFilter('surveys')}
+                    >
+                      Surveys
+                    </button>
+                    <button 
+                      className={`filter-btn ${historyTypeFilter === 'polls' ? 'active' : ''}`}
+                      onClick={() => setHistoryTypeFilter('polls')}
+                    >
+                      Polls
+                    </button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {(() => {
+                  const filteredItems = getFilteredHistoryItems();
+                  
+                  if (filteredItems.length === 0) {
                     return (
-                        <div style={{...cardStyle, padding: '1.5rem'}}>
-                          {completedSurveys.map(survey => (
-                            <div key={survey.id} className="survey-list-item">
-                              <div>
-                                <div style={{ fontWeight: 'bold', fontSize: '1.1rem', color: '#333' }}>{survey.title}</div>
-                                <div style={{ fontSize: '0.9rem', color: '#888', marginTop: '4px' }}>
-                                  {survey.category} • {survey.time} • <span style={{ color: '#4BCB6B', fontWeight: '600' }}>{survey.status}</span>
-                                </div>
-                              </div>
-                              <button className="survey-action-btn view-results">View Results</button>
-                            </div>
-                          ))}
+                      <div className="activity-empty-state">
+                        <div className="empty-state-icon">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14,2 14,8 20,8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                          </svg>
                         </div>
+                        <h4 className="empty-state-title">
+                          {historySearchTerm || historyDateFrom || historyDateTo || historyTypeFilter !== 'all' 
+                            ? 'No Results Found' 
+                            : 'No History Yet'
+                          }
+                        </h4>
+                        <p className="empty-state-message">
+                          {historySearchTerm || historyDateFrom || historyDateTo || historyTypeFilter !== 'all'
+                            ? 'Try adjusting your search criteria or filters to find what you\'re looking for.'
+                            : 'You haven\'t completed any surveys or polls yet. Start participating to build your history!'
+                          }
+                        </p>
+                      </div>
                     );
-                })()
-            ) : (
-                pollHistory.length === 0 ? (
-                    <EmptyState 
-                        title="No Poll History" 
-                        message="You haven't voted in any polls yet." 
-                        icon="📊" 
-                    />
-                ) : (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
-                      {pollHistory.map(poll => (
-                        <div key={poll.id} className="dashboard-card card-border-green">
-                           <div style={{ fontWeight: 700, fontSize: '1.15rem', marginBottom: '0.5rem', color: '#333' }}>{poll.question}</div>
-                           <div style={{ fontSize: '0.9rem', color: '#666', marginBottom: '1.2rem' }}>
-                             Total votes: {poll.totalVotes} • You voted: <span style={{ color: '#B24592', fontWeight: 600 }}>{poll.voted}</span>
-                           </div>
-                           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            {poll.results && poll.results.map((res, idx) => (
-                                <div key={idx}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '6px', color: '#444' }}>
-                                        <span style={{ fontWeight: res.option === poll.voted ? 700 : 400 }}>
-                                            {res.option} {res.option === poll.voted && '(You)'}
-                                        </span>
-                                        <span style={{ fontWeight: 600 }}>{res.percent}%</span>
-                                    </div>
-                                    <div style={{ height: '8px', background: '#f0f0f0', borderRadius: '4px', overflow: 'hidden' }}>
-                                        <div style={{ 
-                                            width: `${res.percent}%`, 
-                                            height: '100%', 
-                                            background: res.option === poll.voted ? '#B24592' : '#ccc',
-                                            borderRadius: '4px',
-                                            transition: 'width 1s ease-out'
-                                        }}></div>
-                                    </div>
+                  }
+
+                  return (
+                    <div className="activity-table-container">
+                      <table className="activity-table">
+                        <thead>
+                          <tr className="table-header-row">
+                            <th className="table-header">Activity</th>
+                            <th className="table-header">Type</th>
+                            <th className="table-header">Status</th>
+                            <th className="table-header">Completed</th>
+                            <th className="table-header">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredItems.map((item, index) => (
+                            <tr key={`${item.type}-${item.id}-${index}`} className="table-row">
+                              <td className="table-cell">
+                                <div className="activity-info">
+                                  <div className="activity-icon">
+                                    {item.type === 'survey' ? (
+                                      <svg className="activity-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                        <polyline points="14,2 14,8 20,8"/>
+                                        <line x1="16" y1="13" x2="8" y2="13"/>
+                                        <line x1="16" y1="17" x2="8" y2="17"/>
+                                      </svg>
+                                    ) : (
+                                      <svg className="activity-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                        <line x1="18" y1="20" x2="18" y2="10"/>
+                                        <line x1="12" y1="20" x2="12" y2="4"/>
+                                        <line x1="6" y1="20" x2="6" y2="14"/>
+                                      </svg>
+                                    )}
+                                  </div>
+                                  <div className="activity-details">
+                                    <div className="activity-title">{item.title}</div>
+                                    <div className="activity-description">{item.description}</div>
+                                  </div>
                                 </div>
-                            ))}
-                          </div>
-                          <div style={{ marginTop: '1.5rem', borderTop: '1px solid #eee', paddingTop: '1rem' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                              <button onClick={() => setExpandedComments(prev => ({ ...prev, [poll.id]: !prev[poll.id] }))} style={{ background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                💬 Comments ({poll.comments ? poll.comments.length : 0})
-                              </button>
-                            </div>
-                            
-                            {expandedComments[poll.id] && (
-                              <div style={{ animation: 'fadeIn 0.3s ease' }}>
-                                <div style={{ maxHeight: '200px', overflowY: 'auto', marginBottom: '1rem' }}>
-                                  {poll.comments && poll.comments.map((c, i) => (
-                                    <div key={i} style={{ background: '#f9f9f9', padding: '8px 12px', borderRadius: '8px', marginBottom: '8px' }}>
-                                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '4px' }}>
-                                        <span style={{ fontWeight: 700, color: '#7D1F4B' }}>{c.user}</span>
-                                        <span style={{ color: '#999' }}>{c.time}</span>
-                                      </div>
-                                      <div style={{ color: '#444', fontSize: '0.9rem' }}>{c.text}</div>
-                                    </div>
-                                  ))}
-                                </div>
-                                <div style={{ display: 'flex', gap: '8px' }}>
-                                  <input type="text" placeholder="Write a comment..." value={commentInputs[poll.id] || ''} onChange={e => setCommentInputs(prev => ({ ...prev, [poll.id]: e.target.value }))} style={{ flex: 1, padding: '8px 12px', borderRadius: '20px', border: '1px solid #ddd', outline: 'none' }} />
-                                  <button onClick={() => submitComment(poll.id)} style={{ background: '#B24592', color: 'white', border: 'none', borderRadius: '20px', padding: '8px 16px', cursor: 'pointer', fontWeight: 600 }}>Post</button>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
+                              </td>
+                              <td className="table-cell">
+                                <span className={`type-badge ${item.type}`}>
+                                  {item.type === 'survey' ? 'Survey' : 'Poll'}
+                                </span>
+                              </td>
+                              <td className="table-cell">
+                                <span className="status-badge completed">
+                                  <svg className="status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <polyline points="20,6 9,17 4,12"/>
+                                  </svg>
+                                  Completed
+                                </span>
+                              </td>
+                              <td className="table-cell">
+                                <span className="activity-time">
+                                  {new Date(item.completedDate).toLocaleDateString('en-US', { 
+                                    weekday: 'short', 
+                                    month: 'short', 
+                                    day: 'numeric' 
+                                  })}
+                                </span>
+                              </td>
+                              <td className="table-cell">
+                                <button 
+                                  className="activity-action-btn secondary"
+                                  onClick={() => handleShare(item.title)}
+                                >
+                                  View Details
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
-                )
-            )}
+                  );
+                })()}
+              </CardContent>
+            </Card>
           </section>
         )}
 
         {activeSection === 'polls' && (
           <section className="fade-in" aria-label="Active Polls Section">
-            <h2 style={{ color: '#2c3e50', marginBottom: '1.5rem', fontWeight: 700 }}>Active Polls</h2>
+            <h2 style={{ color: '#fff', marginBottom: '1.5rem', fontWeight: 700, fontSize: '2rem', textShadow: '0 0 20px rgba(247, 148, 30, 0.3)' }}>Active Polls</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
               {polls.length === 0 ? (
                 <EmptyState 
@@ -614,11 +1052,11 @@ import SuccessToast from './SuccessToast';
                   const selected = pollSelections[poll.id] || '';
                   return (
                     <div key={poll.id} className="poll-card">
-                      <div style={{ fontWeight: 700, fontSize: '1.15rem', marginBottom: '0.7rem', color: '#333' }}>{poll.question}</div>
+                      <div style={{ fontWeight: 700, fontSize: '1.15rem', marginBottom: '0.7rem', color: '#fff' }}>{poll.question}</div>
                       <div style={{ fontSize: '0.85rem', color: poll.anonymous ? '#4BCB6B' : '#F7941E', marginBottom: '0.5rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
                         {poll.anonymous ? <><span>🔒</span> Identity Hidden</> : <><span>👁️</span> Identity Visible</>}
                       </div>
-                      <div style={{ fontSize: '0.85rem', color: '#888', marginBottom: '1rem' }}>
+                      <div style={{ fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.7)', marginBottom: '1rem' }}>
                         {poll.totalVotes} votes so far
                       </div>
                       {poll.justVoted ? (
@@ -630,7 +1068,7 @@ import SuccessToast from './SuccessToast';
                         <>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                             {poll.options.map(option => (
-                              <label key={option} style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderRadius: '10px', border: selected === option ? '2px solid #B24592' : '1px solid #eee', cursor: 'pointer', background: selected === option ? '#fff0f7' : 'white', transition: 'all 0.2s' }}>
+                              <label key={option} style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderRadius: '10px', border: selected === option ? '2px solid #B24592' : '1px solid rgba(255, 255, 255, 0.2)', cursor: 'pointer', background: selected === option ? 'rgba(178, 69, 146, 0.15)' : 'rgba(255, 255, 255, 0.05)', transition: 'all 0.2s', backdropFilter: 'blur(10px)' }}>
                                 <input
                                   type="radio"
                                   name={`poll-${poll.id}`}
@@ -638,7 +1076,7 @@ import SuccessToast from './SuccessToast';
                                   onChange={() => setPollSelections(prev => ({ ...prev, [poll.id]: option }))}
                                   style={{ marginRight: '12px', accentColor: '#B24592', width: '18px', height: '18px' }}
                                 />
-                                <span style={{ color: selected === option ? '#B24592' : '#444', fontWeight: selected === option ? 700 : 500 }}>{option}</span>
+                                <span style={{ color: selected === option ? '#fff' : 'rgba(255, 255, 255, 0.8)', fontWeight: selected === option ? 700 : 500 }}>{option}</span>
                               </label>
                             ))}
                           </div>
@@ -680,67 +1118,250 @@ import SuccessToast from './SuccessToast';
         )}
 
         {activeSection === 'profile' && (
-            <section className="fade-in" style={{ maxWidth: '600px', margin: '0 auto' }} aria-label="Profile Section">
-                <h2 style={{ color: '#2c3e50', marginBottom: '1.5rem', fontWeight: 700 }}>My Profile</h2>
-                <div style={{ ...cardStyle, textAlign: 'center' }}>
-                    <div style={{ position: 'relative', display: 'inline-block', marginBottom: '1.5rem' }}>
-                      <img src={profilePhoto || process.env.PUBLIC_URL + '/profile-photo.png'} alt="Profile" className="staff-profile-photo" />
-                      <input
-                        type="file"
-                        accept="image/*"
-                        style={{ display: 'none' }}
-                        id="staff-photo-upload"
-                        onChange={async e => {
-                          const file = e.target.files[0];
-                          if (file && auth.currentUser) {
-                            setProfilePhoto(URL.createObjectURL(file));
-                            // Upload to backend
-                            const formData = new FormData();
-                            formData.append('photo', file);
-                            const token = await auth.currentUser.getIdToken();
-                            await axios.put('http://localhost:5000/api/auth/me', formData, {
-                              headers: {
-                                'Content-Type': 'multipart/form-data',
-                                Authorization: `Bearer ${token}`
-                              }
-                            });
-                            // Refetch user to get new photo URL
-                            const { data } = await axios.get('http://localhost:5000/api/auth/me', {
-                              headers: { Authorization: `Bearer ${token}` }
-                            });
-                            setUser(data.user);
-                            setProfilePhoto(data.user.photo ? `http://localhost:5000${data.user.photo}` : null);
-                          }
-                        }}
-                      />
-                      <button
-                        type="button"
-                        style={{ position: 'absolute', bottom: '0', right: '0', background: '#B24592', color: 'white', border: '3px solid white', borderRadius: '50%', width: '36px', height: '36px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                        onClick={() => document.getElementById('staff-photo-upload').click()}
-                      >
-                        +
+          <section className="fade-in profile-section" aria-label="Profile Section">
+            <div className="profile-desktop-layout">
+              {/* Profile Info Card */}
+              <Card className="profile-info-card">
+                <CardContent>
+                  <div className="profile-info-content">
+                    <div className="profile-avatar-section">
+                      <div className="profile-avatar-container">
+                        <img 
+                          src={profilePhoto || process.env.PUBLIC_URL + '/vp-pic.png'} 
+                          alt="Profile" 
+                          className="profile-avatar" 
+                        />
+                        <button
+                          type="button"
+                          className="profile-avatar-edit-btn"
+                          onClick={() => document.getElementById('staff-photo-upload').click()}
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                          </svg>
+                        </button>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          id="staff-photo-upload"
+                          onChange={async e => {
+                            const file = e.target.files[0];
+                            if (file && auth.currentUser) {
+                              setProfilePhoto(URL.createObjectURL(file));
+                              const formData = new FormData();
+                              formData.append('photo', file);
+                              const token = await auth.currentUser.getIdToken();
+                              await axios.put('http://localhost:5000/api/auth/me', formData, {
+                                headers: {
+                                  'Content-Type': 'multipart/form-data',
+                                  Authorization: `Bearer ${token}`
+                                }
+                              });
+                              const { data } = await axios.get('http://localhost:5000/api/auth/me', {
+                                headers: { Authorization: `Bearer ${token}` }
+                              });
+                              setUser(data.user);
+                              setProfilePhoto(data.user.photo ? `http://localhost:5000${data.user.photo}` : null);
+                            }
+                          }}
+                        />
+                      </div>
+                      <div className="profile-user-info">
+                        <h3 className="profile-user-name">{user?.name || staffName || 'User'}</h3>
+                        <p className="profile-user-email">{user?.email || 'user@company.com'}</p>
+                        <p className="profile-user-department">{user?.department || 'Staff Member'}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="profile-stats">
+                      <div className="profile-stat-item">
+                        <div className="profile-stat-number">{surveys.filter(s => s.status === 'Completed').length}</div>
+                        <div className="profile-stat-label">Surveys Completed</div>
+                      </div>
+                      <div className="profile-stat-item">
+                        <div className="profile-stat-number">{pollHistory.length}</div>
+                        <div className="profile-stat-label">Polls Participated</div>
+                      </div>
+                      <div className="profile-stat-item">
+                        <div className="profile-stat-number">95%</div>
+                        <div className="profile-stat-label">Participation Rate</div>
+                      </div>
+                    </div>
+                    
+                    <div className="profile-member-info">
+                      <div className="profile-member-item">
+                        <span className="profile-member-label">Member Since</span>
+                        <span className="profile-member-value">
+                          {new Date().toLocaleDateString('en-US', { 
+                            month: 'long', 
+                            year: 'numeric' 
+                          })}
+                        </span>
+                      </div>
+                      <div className="profile-member-item">
+                        <span className="profile-member-label">Last Active</span>
+                        <span className="profile-member-value">Today</span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Profile Edit Form */}
+              <Card className="profile-edit-form">
+                <CardHeader>
+                  <CardTitle>Profile Settings</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="profile-form-grid">
+                    <div className="profile-form-section">
+                      <h4 className="profile-section-title">Personal Information</h4>
+                      
+                      <div className="profile-form-row">
+                        <div className="profile-form-group">
+                          <label className="profile-form-label">Full Name</label>
+                          <div className="profile-input-container">
+                            <input 
+                              type="text" 
+                              value={user?.name || ''} 
+                              className="profile-form-input"
+                              placeholder="Enter your full name"
+                            />
+                            <div className="profile-input-icon">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                <circle cx="12" cy="7" r="4"/>
+                              </svg>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="profile-form-group">
+                          <label className="profile-form-label">Username</label>
+                          <div className="profile-input-container">
+                            <input 
+                              type="text" 
+                              value={(user?.name || staffName || 'user').toLowerCase().replace(/\s+/g, '')} 
+                              className="profile-form-input"
+                              placeholder="Username"
+                            />
+                            <div className="profile-input-icon">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path d="M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM12 14a7 7 0 0 0-7 7h14a7 7 0 0 0-7-7z"/>
+                              </svg>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="profile-form-row">
+                        <div className="profile-form-group">
+                          <label className="profile-form-label">Email Address</label>
+                          <div className="profile-input-container">
+                            <input 
+                              type="email" 
+                              value={user?.email || ''} 
+                              className="profile-form-input"
+                              placeholder="your.email@company.com"
+                              disabled
+                            />
+                            <div className="profile-input-icon">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                                <polyline points="22,6 12,13 2,6"/>
+                              </svg>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="profile-form-group">
+                          <label className="profile-form-label">Department</label>
+                          <div className="profile-input-container">
+                            <input 
+                              type="text" 
+                              value={user?.department || ''} 
+                              className="profile-form-input"
+                              placeholder="Your department"
+                              disabled
+                            />
+                            <div className="profile-input-icon">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path d="M3 21h18"/>
+                                <path d="M5 21V7l8-4v18"/>
+                                <path d="M19 21V11l-6-4"/>
+                              </svg>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="profile-form-section">
+                      <h4 className="profile-section-title">Security</h4>
+                      
+                      <div className="profile-form-row">
+                        <div className="profile-form-group">
+                          <label className="profile-form-label">Current Password</label>
+                          <div className="profile-input-container">
+                            <input 
+                              type="password" 
+                              className="profile-form-input"
+                              placeholder="Enter current password"
+                            />
+                            <div className="profile-input-icon">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                <circle cx="12" cy="16" r="1"/>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                              </svg>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="profile-form-group">
+                          <label className="profile-form-label">New Password</label>
+                          <div className="profile-input-container">
+                            <input 
+                              type="password" 
+                              className="profile-form-input"
+                              placeholder="Enter new password"
+                            />
+                            <div className="profile-input-icon">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                <circle cx="12" cy="16" r="1"/>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                              </svg>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="profile-form-actions">
+                      <button className="profile-save-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                          <polyline points="17,21 17,13 7,13 7,21"/>
+                          <polyline points="7,3 7,8 15,8"/>
+                        </svg>
+                        Save Changes
+                      </button>
+                      <button className="profile-cancel-btn">
+                        Cancel
                       </button>
                     </div>
-                    <div style={{ textAlign: 'left', display: 'grid', gap: '1rem' }}>
-                        <div>
-                            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#555' }}>Full Name</label>
-                            <input type="text" value={user?.name || ''} readOnly style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }} />
-                        </div>
-                        <div>
-                            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#555' }}>Email</label>
-                            <input type="email" value={user?.email || ''} disabled style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #eee', background: '#f9f9f9', color: '#888' }} />
-                        </div>
-                        <div>
-                            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#555' }}>Department</label>
-                            <input type="text" value={user?.department || ''} disabled style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #eee', background: '#f9f9f9', color: '#888' }} />
-                        </div>
-                        <button style={{ marginTop: '1rem', background: 'linear-gradient(90deg, #F7941E 0%, #B24592 100%)', color: 'white', border: 'none', padding: '12px', borderRadius: '24px', fontWeight: 600, cursor: 'pointer' }}>Save Changes</button>
-                    </div>
-                </div>
-            </section>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </section>
         )}
 
       </main>
+      </div>
 
       {showSuccessToast && (
         <SuccessToast

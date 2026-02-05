@@ -4,6 +4,19 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import './App.css'; // Use your main styles for theme
 
+const EmailVerifiedPage = () => {
+  return (
+    <div style={{ 
+      minHeight: '100vh', 
+      display: 'flex', 
+      alignItems: 'center', 
+      justifyContent: 'center', 
+      background: 'linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%)'
+    }}>
+      <EmailVerified />
+    </div>
+  );
+};
 
 const EmailVerified = () => {
   const navigate = useNavigate();
@@ -12,16 +25,17 @@ const EmailVerified = () => {
   const [message, setMessage] = useState('Verifying your email...');
 
   useEffect(() => {
-    // Get uid from query params
+    // Get oobCode and mode from query params
     const params = new URLSearchParams(location.search);
-    const uid = params.get('uid');
-    if (!uid) {
+    const oobCode = params.get('oobCode');
+    const mode = params.get('mode');
+    if (!oobCode || mode !== 'verifyEmail') {
       setStatus('error');
       setMessage('Invalid verification link.');
       return;
     }
     // Call backend to verify
-    axios.get(`http://localhost:5000/api/auth/verify-email?uid=${encodeURIComponent(uid)}`)
+    axios.get(`http://localhost:5000/api/auth/verify-email?oobCode=${encodeURIComponent(oobCode)}&mode=${encodeURIComponent(mode)}`)
       .then(() => {
         setStatus('success');
         setMessage('Your email has been verified! You can now sign in.');
@@ -37,10 +51,36 @@ const EmailVerified = () => {
       });
   }, [location, navigate]);
 
+  // Handler to request a new verification email
+  const handleResendVerification = async () => {
+    const params = new URLSearchParams(location.search);
+    const oobCode = params.get('oobCode');
+    const mode = params.get('mode');
+    try {
+      // Try to get the email from the action code
+      if (oobCode && mode === 'verifyEmail') {
+        const info = await axios.get(`http://localhost:5000/api/auth/check-action-code?oobCode=${encodeURIComponent(oobCode)}`);
+        const email = info.data.email;
+        await axios.post('http://localhost:5000/api/auth/resend-verification', { email });
+        setMessage('Verification email resent! Check your inbox.');
+      } else {
+        setMessage('Cannot resend verification. Invalid link.');
+      }
+    } catch (err) {
+      setMessage('Failed to resend verification email.');
+    }
+  };
+
   return (
     <div className="auth-wrapper">
+      <div className="auth-left">
+        <div className="modern-orb-container">
+          <div className="modern-orb"></div>
+        </div>
+      </div>
       <div className="auth-right">
         <div className="auth-right-content">
+          <img src={process.env.PUBLIC_URL + '/vp-pic.png'} alt="Virtual Pay Logo" className="auth-logo" />
           <h2 className="login h2" style={{ color: '#fff' }}>
             {status === 'verifying' && 'Verifying...'}
             {status === 'success' && 'Email Verified!'}
@@ -51,16 +91,24 @@ const EmailVerified = () => {
           </div>
           <button
             className="auth-btn"
-            style={{ background: 'linear-gradient(90deg, #B24592 0%, #F15F79 100%)', color: '#fff', fontWeight: 600, borderRadius: 8, padding: '12px 32px', fontSize: '1.1rem', marginTop: 16 }}
             onClick={() => navigate('/auth')}
             disabled={status === 'verifying'}
           >
             Go to Sign In
           </button>
+          {status === 'error' && (
+            <button
+              className="auth-btn"
+              style={{ marginTop: 12, background: '#F7941E', color: '#fff' }}
+              onClick={handleResendVerification}
+            >
+              Request Another Verification Link
+            </button>
+          )}
         </div>
       </div>
     </div>
   );
 };
 
-export default EmailVerified;
+export default EmailVerifiedPage;

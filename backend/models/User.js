@@ -7,8 +7,13 @@ const userSchema = new mongoose.Schema({
    password: { type: String, required: true },
    role: { type: String, enum: ['admin', 'staff', 'user'], default: 'user' },
    department: { type: String },
+   photo: { type: String },
    twoFactorSecret: { type: String },
    isTwoFactorEnabled: { type: Boolean, default: false },
+   isAtive: { type: Boolean, default: true },
+   jwtToken: { type: String },
+   firebaseUid: { type: String },
+   isVerified: { type: Boolean, default: false },
    createdAt: { type: Date, default: Date.now }
 });
 

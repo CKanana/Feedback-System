@@ -1,4 +1,11 @@
 const mongoose = require('mongoose');
+// Survey Draft Schema
+const SurveyDraftSchema = new mongoose.Schema({
+	survey: { type: mongoose.Schema.Types.ObjectId, ref: 'Survey', required: true },
+	user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+	answers: [{ questionId: mongoose.Schema.Types.ObjectId, answer: mongoose.Schema.Types.Mixed }],
+	updatedAt: { type: Date, default: Date.now }
+});
 
 // User Schema
 const UserSchema = new mongoose.Schema({
@@ -33,6 +40,11 @@ const PollSchema = new mongoose.Schema({
 	anonymous: { type: Boolean, default: false },
 	status: { type: String, enum: ['active', 'closed'], default: 'active' },
 	votedBy: [VotedBySchema],
+	recipients: {
+	  users: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+	  departments: [String]
+	},
+	createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 	createdAt: { type: Date, default: Date.now },
 });
 
@@ -55,6 +67,10 @@ const SurveySchema = new mongoose.Schema({
 	description: { type: String },
 	questions: [QuestionSchema],
 	responses: [ResponseSchema],
+	recipients: {
+	  users: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+	  departments: [String]
+	},
 	createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 	createdAt: { type: Date, default: Date.now },
 });
@@ -62,5 +78,6 @@ const SurveySchema = new mongoose.Schema({
 module.exports = {
 	User: mongoose.model('User', UserSchema),
 	Poll: mongoose.model('Poll', PollSchema),
-	Survey: mongoose.model('Survey', SurveySchema)
+	Survey: mongoose.model('Survey', SurveySchema),
+	SurveyDraft: mongoose.model('SurveyDraft', SurveyDraftSchema)
 };
